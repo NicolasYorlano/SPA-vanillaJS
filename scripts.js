@@ -487,9 +487,7 @@ async function loadGallery({ routeName, section, fetchPage, dedupeBy, mapItem, l
         const showEndMessage = () => {
             const endMsg = document.createElement('p');
             endMsg.className = 'end-of-list';
-            endMsg.textContent = exhausted
-                ? 'No hay más resultados disponibles.'
-                : '¡Llegaste al final!';
+            endMsg.textContent = 'No hay más elementos para mostrar.';
             loadMoreContainer.appendChild(endMsg);
         };
 
