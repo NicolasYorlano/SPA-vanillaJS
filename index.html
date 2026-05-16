@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="es-AR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <title>TP1 - TyGW</title>
+    <meta name="description" content="Galería de imágenes que consume APIs públicas (The Cat API y Pixabay). SPA construida con HTML, CSS y JavaScript vanilla.">
+    <meta name="author" content="Nicolás Yorlano">
+    <meta name="theme-color" content="#2563eb">
+    <meta name="color-scheme" content="light">
+    <link rel="canonical" href="https://tp1-tygw.vercel.app/">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="icon" type="image/png" href="favicon.png">
+
+</head>
+
+<body>
+    <header>
+        <div>
+            <a href="/" class="brand-link" aria-label="Ir a inicio">
+                <span>TyGW.LAB</span>
+            </a>
+        </div>
+
+        <div>
+            <h1>Trabajo Práctico N° 1</h1>
+            <p>Nicolás Yorlano</p>
+        </div>
+
+        <div>FullStack Developer</div>
+    </header>
+
+    <aside>
+        <h2 class="aside-heading">Exploración de Datos</h2>
+
+        <nav>
+            <button type="button" data-route="home">Inicio</button>
+            <h3 class="nav-section-label">APIs Públicas</h3>
+            <button type="button" data-route="cats">Gatitos tiernos</button>
+            <button type="button" data-route="cars">Autos que no nos alcanza para tener</button>
+        </nav>
+    </aside>
+
+    <main>
+        <div id="root">
+            <!-- Se inyecta por JS -->
+        </div>
+    </main>
+
+    <footer>
+        <p>
+            Tecnología y Gestión Web - Nicolás Yorlano &copy;<span data-year></span>
+        </p>
+    </footer>
+
+    <script type="module" src="scripts.js"></script>
+
+</body>
+</html>
