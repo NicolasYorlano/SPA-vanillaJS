@@ -20,6 +20,7 @@ const mainContainer = document.querySelector('#root');
 const navButtons = document.querySelectorAll('aside nav button');
 
 let activeRoute = null;
+let currentController = null;
 
 const routes = Object.create(null);
 routes[ROUTE.HOME] = renderHome;
@@ -82,6 +83,10 @@ async function handleRouteChange(isInitial) {
 
     if (routeName === activeRoute) return;
 
+    // Abortar fetches en vuelo de la ruta anterior antes de cambiar el estado
+    currentController?.abort();
+    currentController = new AbortController();
+
     activeRoute = routeName;
     window.dispatchEvent(new CustomEvent('routechange', { detail: { route: routeName } }));
 
@@ -115,7 +120,7 @@ function updateTitle(routeName) {
 }
 
 function focusMainHeading() {
-    const heading = mainContainer.querySelector('h2');
+    const heading = mainContainer.querySelector('h1');
     if (heading) {
         heading.tabIndex = -1;
         heading.focus();
@@ -178,7 +183,7 @@ function showError(message, container = mainContainer, onRetry = null) {
 
 function humanizeError(error) {
     console.error('[App error]', error);
-    if (error instanceof TypeError && /fetch|network/i.test(error.message)) {
+    if (error instanceof TypeError) {
         return 'No se pudo conectar. Revisá tu conexión.';
     }
     if (error instanceof SyntaxError) {
@@ -205,12 +210,12 @@ function renderHome() {
     const selected = phrases[Math.floor(Math.random() * phrases.length)];
 
     mainContainer.innerHTML = `
-        <h2 class="content-title">Página de Inicio</h2>
+        <h1 class="content-title">Página de Inicio</h1>
 
-        <h3 class="${selected.className} highlighted-quote">"${selected.text}"</h3>
+        <h2 class="${selected.className} highlighted-quote">"${selected.text}"</h2>
 
         <section class="expectations-paragraph">
-            <h4>Mis Expectativas</h4>
+            <h3>Mis Expectativas</h3>
             <p>
                 Espero profundizar mis conocimientos en el desarrollo de aplicaciones web
                 modernas con html, css y javascript, comprendiendo no solo la implementación
@@ -229,7 +234,7 @@ function createGallerySection({ titleText, refreshId, refreshText, onRefresh, lo
     const titleGroup = document.createElement('div');
     titleGroup.className = 'title-group';
 
-    const title = document.createElement('h2');
+    const title = document.createElement('h1');
     title.className = 'content-title';
     title.textContent = titleText;
 
@@ -275,10 +280,9 @@ function createGallerySection({ titleText, refreshId, refreshText, onRefresh, lo
 }
 
 function buildCard({ imgSrc, alt, name }) {
-    const card = document.createElement('div');
+    const card = document.createElement('button');
+    card.type = 'button';
     card.className = 'card';
-    card.setAttribute('role', 'button');
-    card.tabIndex = 0;
     card.setAttribute('aria-label', `Ver imagen de ${name} en grande`);
 
     const imgContainer = document.createElement('div');
@@ -301,7 +305,7 @@ function buildCard({ imgSrc, alt, name }) {
         imgContainer.appendChild(placeholder);
     });
 
-    const nameEl = document.createElement('h3');
+    const nameEl = document.createElement('span');
     nameEl.className = 'card-name';
     nameEl.textContent = name;
 
@@ -309,34 +313,20 @@ function buildCard({ imgSrc, alt, name }) {
     card.appendChild(imgContainer);
     card.appendChild(nameEl);
 
-    const open = () => openCardModal({ imgSrc, alt, name });
-    card.addEventListener('click', open);
-    card.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            open();
-        }
-    });
+    card.addEventListener('click', () => openCardModal({ imgSrc, alt, name }));
 
     return card;
 }
 
 function openCardModal({ imgSrc, alt, name }) {
-    const previousFocus = document.activeElement;
     const previousOverflow = document.body.style.overflow;
-    const inertElements = ['header', 'aside', 'main', 'footer']
-        .map(s => document.querySelector(s))
-        .filter(Boolean);
 
-    const modal = document.createElement('div');
+    const modal = document.createElement('dialog');
     modal.className = 'modal-backdrop';
-    modal.setAttribute('role', 'dialog');
-    modal.setAttribute('aria-modal', 'true');
     modal.setAttribute('aria-label', name);
 
     const dialog = document.createElement('div');
     dialog.className = 'modal-dialog';
-    dialog.tabIndex = -1;
 
     const closeBtn = document.createElement('button');
     closeBtn.type = 'button';
@@ -366,55 +356,35 @@ function openCardModal({ imgSrc, alt, name }) {
     });
     img.src = imgSrc;
 
-    const cleanup = () => {
-        document.removeEventListener('keydown', onKey);
-        window.removeEventListener('routechange', closeOnNav);
-        inertElements.forEach(el => { el.inert = false; });
-        document.body.style.overflow = previousOverflow;
-        if (previousFocus && document.contains(previousFocus) && typeof previousFocus.focus === 'function') {
-            previousFocus.focus();
-        }
-    };
-
     const close = () => {
         modal.classList.add('modal-closing');
         modal.addEventListener('animationend', () => {
+            modal.close();
             modal.remove();
-            cleanup();
+            window.removeEventListener('routechange', closeOnNav);
+            document.body.style.overflow = previousOverflow;
         }, { once: true });
     };
 
-    const onKey = (e) => {
-        if (e.key === 'Escape') close();
-    };
     const closeOnNav = () => close();
+
+    // El <dialog> nativo dispara 'cancel' al apretar Escape; lo interceptamos
+    // para correr nuestra animación de cierre en lugar del cierre instantáneo.
+    modal.addEventListener('cancel', (e) => {
+        e.preventDefault();
+        close();
+    });
 
     closeBtn.addEventListener('click', close);
     modal.addEventListener('click', (e) => {
         if (e.target === modal) close();
     });
-    modal.addEventListener('keydown', (e) => {
-        if (e.key !== 'Tab') return;
-        const focusable = modal.querySelectorAll('button, [tabindex]:not([tabindex="-1"])');
-        if (focusable.length === 0) return;
-        const first = focusable[0];
-        const last = focusable[focusable.length - 1];
-        if (e.shiftKey && document.activeElement === first) {
-            e.preventDefault();
-            last.focus();
-        } else if (!e.shiftKey && document.activeElement === last) {
-            e.preventDefault();
-            first.focus();
-        }
-    });
-    document.addEventListener('keydown', onKey);
+
     window.addEventListener('routechange', closeOnNav);
 
-    inertElements.forEach(el => { el.inert = true; });
     document.body.style.overflow = 'hidden';
     document.body.appendChild(modal);
-
-    requestAnimationFrame(() => closeBtn.focus());
+    modal.showModal();
 }
 
 const catNames = [
@@ -507,6 +477,7 @@ async function loadGallery({ routeName, section, fetchPage, dedupeBy, mapItem, l
                 }
                 render(items);
             } catch (error) {
+                if (error.name === 'AbortError') return;
                 showError(loadMoreErrorPrefix + humanizeError(error), loadMoreError);
             } finally {
                 if (totalItems >= MAX_ITEMS || exhausted) {
@@ -519,6 +490,7 @@ async function loadGallery({ routeName, section, fetchPage, dedupeBy, mapItem, l
             }
         });
     } catch (error) {
+        if (error.name === 'AbortError') return;
         if (activeRoute !== routeName) return;
         showError(humanizeError(error), mainContainer, () => routes[routeName]());
     }
@@ -526,7 +498,10 @@ async function loadGallery({ routeName, section, fetchPage, dedupeBy, mapItem, l
 
 function fetchCats() {
     const fetchPage = async () => {
-        const response = await fetch(`https://api.thecatapi.com/v1/images/search?limit=${ITEMS_PER_PAGE}`);
+        const response = await fetch(
+            `https://api.thecatapi.com/v1/images/search?limit=${ITEMS_PER_PAGE}`,
+            { signal: currentController?.signal }
+        );
         if (!response.ok) throw new Error('Error en la API de gatos');
         return response.json();
     };
@@ -557,12 +532,15 @@ function fetchCats() {
 }
 
 function fetchLuxuryCars() {
+    // API key expuesta intencionalmente: la app es estática sin backend.
+    // Pixabay permite el uso público de su API en clientes web; si el endpoint
+    // se moviera a un proxy, esta key se rotaría y movería a una variable de entorno.
     const apiKey = '55650789-13538bfe7e66d705291a79be6';
     let currentPage = Math.floor(Math.random() * PAGE_RANGE) + 1;
 
     const fetchPage = async () => {
         const url = `https://pixabay.com/api/?key=${apiKey}&q=ferrari+lamborghini+supercar&image_type=photo&orientation=horizontal&per_page=${ITEMS_PER_PAGE}&page=${currentPage}&safesearch=true`;
-        const response = await fetch(url);
+        const response = await fetch(url, { signal: currentController?.signal });
         if (!response.ok) throw new Error('Error al conectar con la API de autos');
         const data = await response.json();
         currentPage++;
@@ -579,6 +557,7 @@ function fetchLuxuryCars() {
             loadMoreText: 'Cargar más autos'
         },
         fetchPage,
+        dedupeBy: car => car.id,
         mapItem: car => {
             const name = car.tags?.split(',')[0]?.trim() || 'Sin nombre';
             return { imgSrc: car.webformatURL, alt: `Auto: ${name}`, name };

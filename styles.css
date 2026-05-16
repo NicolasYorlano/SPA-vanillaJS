@@ -43,7 +43,7 @@
     --sidebar-width: 260px;
 
     /* === EFFECTS === */
-    --transition: background-color 0.3s ease, color 0.3s ease, transform 0.3s ease, box-shadow 0.3s ease;
+    --transition: background-color 0.3s ease, color 0.3s ease, transform 0.1s ease, box-shadow 0.3s ease;
     --skeleton-bg: linear-gradient(90deg, var(--surface-muted) 0%, var(--border-color) 50%, var(--surface-muted) 100%);
 }
 
@@ -142,10 +142,11 @@ header span {
     font-size: 1.2rem;
 }
 
-header h1 {
+.header-title {
     font-size: 1.1rem;
     font-weight: 700;
     text-align: center;
+    color: var(--text-main);
 }
 
 header p {
@@ -154,7 +155,7 @@ header p {
     text-align: center;
 }
 
-header > div:last-child {
+.role-badge {
     font-size: 0.85rem;
     font-weight: 600;
     background: var(--surface-muted);
@@ -292,6 +293,13 @@ main > div {
     cursor: pointer;
     transition: var(--transition);
     animation: fadeIn 0.25s ease-out;
+
+    /* Reset para que <button class="card"> se vea idéntico a un div */
+    font: inherit;
+    color: inherit;
+    text-align: left;
+    width: 100%;
+    display: block;
 }
 
 .img-container {
@@ -335,10 +343,11 @@ main > div {
 }
 
 .card-name {
+    display: block;
     font-size: 1rem;
     text-transform: capitalize;
-    font-weight: bold;
-    margin-top: 10px;
+    font-weight: 700;
+    margin-top: 0.625rem;
 }
 
 /* --- SKELETON --- */
@@ -362,7 +371,7 @@ main > div {
 .skeleton-name {
     width: 60%;
     height: 1rem;
-    margin-top: 10px;
+    margin-top: 0.625rem;
     border-radius: 4px;
     background: var(--skeleton-bg);
     background-size: 200% 100%;
@@ -476,7 +485,7 @@ main > div {
     border-radius: 0 8px 8px 0;
 }
 
-.expectations-paragraph h4 {
+.expectations-paragraph h3 {
     color: var(--primary-color);
     margin-bottom: 0.5rem;
     font-size: 1.1rem;
@@ -507,7 +516,7 @@ main > div {
     color: var(--text-muted);
     font-size: 0.9rem;
     font-style: italic;
-    margin-top: 1rem;
+    margin-top: 0;
     animation: fadeIn 0.3s ease-out;
 }
 
@@ -528,6 +537,21 @@ main > div {
     z-index: 1000;
     padding: 2rem;
     animation: modalFadeIn 0.2s ease-out;
+}
+
+/* Overrides cuando .modal-backdrop está aplicado a un <dialog> nativo */
+dialog.modal-backdrop {
+    width: auto;
+    height: auto;
+    max-width: none;
+    max-height: none;
+    margin: 0;
+    border: none;
+    color: inherit;
+}
+
+dialog.modal-backdrop::backdrop {
+    background: transparent;
 }
 
 .modal-backdrop.modal-closing {
@@ -655,7 +679,7 @@ footer p {
 /* --- RESPONSIVE --- */
 
 /* Tablets (landscape) */
-@media (max-width: 1024px) {
+@media (max-width: 64em) {
     :root {
         --sidebar-width: 200px;
     }
@@ -670,7 +694,7 @@ footer p {
 }
 
 /* Tablets (portrait) y Celulares grandes */
-@media (max-width: 768px) {
+@media (max-width: 48em) {
     body {
         grid-template-areas:
             "header"
@@ -690,7 +714,7 @@ footer p {
         text-align: center;
     }
 
-    header > div:last-child {
+    .role-badge {
         display: none;
     }
 
@@ -755,12 +779,12 @@ footer p {
 }
 
 /* Celulares pequeños */
-@media (max-width: 480px) {
+@media (max-width: 30em) {
     header {
         padding: 0.8rem;
     }
 
-    header h1 {
+    .header-title {
         font-size: 0.95rem;
     }
 

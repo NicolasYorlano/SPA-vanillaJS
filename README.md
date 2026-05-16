@@ -2,6 +2,8 @@
 
 SPA (Single Page Application) construida con **HTML, CSS y JavaScript vanilla**, sin frameworks ni dependencias en runtime. Consume dos APIs públicas y las renderiza como galerías paginadas con un modal de detalle.
 
+APP EN PRODUCCIÓN: https://cats-and-cars.vercel.app
+
 ## Features
 
 - Routing con **History API** (URLs limpias: `/`, `/cats`, `/cars`).
