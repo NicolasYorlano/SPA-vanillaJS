@@ -8,14 +8,66 @@
     <meta name="description" content="Galería de imágenes que consume APIs públicas (The Cat API y Pixabay). SPA construida con HTML, CSS y JavaScript vanilla.">
     <meta name="author" content="Nicolás Yorlano">
     <meta name="theme-color" content="#2563eb">
-    <meta name="color-scheme" content="light">
     <link rel="canonical" href="https://tp1-tygw.vercel.app/">
     <link rel="stylesheet" href="styles.css">
     <link rel="icon" type="image/png" href="favicon.png">
 
+    <!--
+        Inline script para prevenir FOUC (Flash of Unstyled Content) en dark mode.
+        scripts.js es un ES module y se ejecuta deferred (después del primer paint).
+        Si dejáramos la lógica del tema ahí, los usuarios con dark mode preferido
+        verían un flash blanco antes de que el JS aplique data-theme="dark".
+        Este script corre sincronicamente antes del CSS, evitando ese flash.
+        Patrón estándar: Next.js, Vercel, GitHub, Twitter usan la misma técnica.
+    -->
+    <script>
+        (function () {
+            // try/catch: localStorage puede tirar SecurityError en Firefox con
+            // cookies bloqueadas o en iframes con sandbox restrictivo. En esos
+            // casos caemos al default light sin romper la app.
+            try {
+                const stored = localStorage.getItem('theme');
+                const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                const theme = stored || (prefersDark ? 'dark' : 'light');
+                if (theme === 'dark') {
+                    document.documentElement.setAttribute('data-theme', 'dark');
+                    // Pre-sincronizar theme-color para evitar el flash en la barra
+                    // de URL del navegador mobile durante el primer paint.
+                    // IMPORTANTE: este valor debe matchear --primary-color del
+                    // bloque [data-theme="dark"] en styles.css. Si cambia ahí,
+                    // actualizar acá también. (Una vez que scripts.js carga,
+                    // applyTheme() lo re-lee desde getComputedStyle.)
+                    const meta = document.querySelector('meta[name="theme-color"]');
+                    if (meta) meta.content = '#60a5fa';
+                }
+            } catch (e) { /* localStorage bloqueado: caemos al default light. */ }
+        })();
+    </script>
 </head>
 
 <body>
+    <noscript>
+        <style>
+            body > :not(.noscript-message) { display: none !important; }
+            .noscript-message {
+                max-width: 32rem;
+                margin: 4rem auto;
+                padding: 1.5rem 2rem;
+                font-family: system-ui, sans-serif;
+                border: 1px solid #e2e8f0;
+                border-radius: 8px;
+                background: #f8fafc;
+                color: #1e293b;
+                line-height: 1.6;
+                text-align: center;
+            }
+        </style>
+        <div class="noscript-message">
+            <h1 style="font-size: 1.2rem; margin-bottom: 0.5rem;">JavaScript requerido</h1>
+            <p>Esta aplicación es una SPA (Single Page Application) y necesita JavaScript habilitado para funcionar. Activalo en la configuración de tu navegador y recargá la página.</p>
+        </div>
+    </noscript>
+
     <header>
         <div>
             <a href="/" class="brand-link" aria-label="Ir a inicio">
@@ -28,19 +80,23 @@
             <p>Nicolás Yorlano</p>
         </div>
 
-        <div class="role-badge">FullStack Developer</div>
+        <div class="header-actions">
+            <div class="role-badge">FullStack Developer</div>
+
+            <button type="button" id="theme-toggle" class="theme-toggle" aria-label="Cambiar tema" title="Cambiar tema">
+                <svg class="theme-toggle-icon icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+                <svg class="theme-toggle-icon icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+            </button>
+        </div>
     </header>
 
-    <aside aria-label="Navegación de secciones">
-        <h2 class="aside-heading">Exploración de Datos</h2>
-
-        <nav aria-label="Secciones disponibles">
-            <button type="button" data-route="home">Inicio</button>
-            <h3 class="nav-section-label">APIs Públicas</h3>
-            <button type="button" data-route="cats">Gatitos tiernos</button>
-            <button type="button" data-route="cars">Autos que no nos alcanza para tener</button>
-        </nav>
-    </aside>
+    <nav class="sidebar" aria-label="Navegación principal">
+        <h2 class="sidebar-heading">Exploración de Datos</h2>
+        <a href="/" data-route="home">Inicio</a>
+        <h3 class="sidebar-section-label">APIs Públicas</h3>
+        <a href="/cats" data-route="cats">Gatitos tiernos</a>
+        <a href="/cars" data-route="cars">Autos que no nos alcanza para tener</a>
+    </nav>
 
     <main>
         <div id="root">

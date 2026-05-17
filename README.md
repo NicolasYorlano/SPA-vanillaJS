@@ -6,12 +6,18 @@ APP EN PRODUCCIÓN: https://cats-and-cars.vercel.app
 
 ## Features
 
-- Routing con **History API** (URLs limpias: `/`, `/cats`, `/cars`).
-- Galerías con paginación incremental (botón "cargar más") y deduplicación de resultados.
-- Modal accesible con foco atrapado, navegación por teclado y cierre con `Escape` o click en backdrop.
-- Skeleton loaders durante el fetch.
-- Estados de error con botón de reintento.
-- Soporte de `prefers-reduced-motion` para animaciones.
+- Routing con **History API** (URLs limpias: `/`, `/cats`, `/cars`) con cancelación de fetches en vuelo al cambiar de ruta (`AbortController`).
+- **Dark mode** con toggle persistente en `localStorage`, respeto inicial a `prefers-color-scheme` y script anti-FOUC para evitar flash en el primer paint.
+- Galerías con paginación incremental (botón "cargar más"), deduplicación de resultados por ID, y botón de refresh que preserva la posición de scroll.
+- Modal con elemento **`<dialog>` nativo**: focus trap, cierre con `Escape` o click en backdrop, skeleton de imagen mientras carga.
+- Fetch con **timeout de 10s** (`AbortSignal.any` componiendo señales de router + timeout) y traducción del `AbortError` a mensaje legible.
+- Home con cards CTA que linkean a las galerías.
+- Skeleton loaders durante el fetch inicial y mientras carga la imagen del modal.
+- Estados de error tipados (network, timeout, JSON inválido) con botón de reintento global y por-acción.
+- Meta tags para SEO básico (`description`, `theme-color` sincronizado al tema activo, `canonical`).
+- Fallback con `<noscript>` para usuarios con JavaScript desactivado.
+- Soporte de `prefers-reduced-motion` y `prefers-color-scheme`.
+- Cards y nav implementados con elementos nativos (`<button>`, `<a>`) — no `<div role="...">`.
 - Sin build step, sin `node_modules`.
 
 ## APIs consumidas
@@ -78,7 +84,7 @@ Vercel evalúa los rewrites **después** de chequear el filesystem, por lo que l
 appJS/
 ├── index.html       # Shell HTML; el contenido se inyecta dinámicamente
 ├── styles.css
-├── scripts.js       # Router, fetch, render de cards, modal
+├── scripts.js       # Router, fetch, render de cards, modal, dark mode
 ├── favicon.png
 ├── vercel.json      # SPA fallback en Vercel
 └── README.md

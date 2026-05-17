@@ -1,7 +1,8 @@
 const MAX_ITEMS = 30;
 const ITEMS_PER_PAGE = 6;
-const PAGE_RANGE = 10;
-const BASE_TITLE = 'TP1 - TyGW';
+const PAGE_RANGE = 10; // Rango de páginas para el random inicial en la API de autos
+const FETCH_TIMEOUT_MS = 10000;
+const BASE_TITLE = document.title;
 const BASE_PATH = new URL('.', import.meta.url).pathname.replace(/\/$/, '');
 
 const ROUTE = Object.freeze({
@@ -17,20 +18,77 @@ const ROUTE_TITLES = {
 };
 
 const mainContainer = document.querySelector('#root');
-const navButtons = document.querySelectorAll('aside nav button');
+const navLinks = document.querySelectorAll('.sidebar a[data-route]');
 
 let activeRoute = null;
 let currentController = null;
+// Recordamos la última página inicial usada por la galería de autos para
+// garantizar que dos refreshes consecutivos nunca caigan en la misma página.
+let lastCarsStartPage = null;
 
+// Lookup ruta → handler. Object.create(null) evita prototype pollution.
 const routes = Object.create(null);
 routes[ROUTE.HOME] = renderHome;
 routes[ROUTE.CATS] = fetchCats;
 routes[ROUTE.CARS] = fetchLuxuryCars;
 
+// === Theme ===
+
+function getCurrentTheme() {
+    return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+}
+
+function applyTheme(theme) {
+    if (theme === 'dark') {
+        document.documentElement.setAttribute('data-theme', 'dark');
+    } else {
+        document.documentElement.removeAttribute('data-theme');
+    }
+    // Sincronizar el meta theme-color (afecta el color de la barra de URL en mobile)
+    const primary = getComputedStyle(document.documentElement)
+        .getPropertyValue('--primary-color')
+        .trim();
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta && primary) meta.content = primary;
+}
+
+function initTheme() {
+    // El tema ya fue aplicado por el script inline del <head>. Solo configuramos
+    // el toggle y el listener de prefers-color-scheme.
+    applyTheme(getCurrentTheme());
+
+    const toggle = document.querySelector('#theme-toggle');
+    if (toggle) {
+        toggle.addEventListener('click', () => {
+            const next = getCurrentTheme() === 'dark' ? 'light' : 'dark';
+            localStorage.setItem('theme', next);
+            applyTheme(next);
+        });
+    }
+
+    // Reaccionar a cambios del sistema solo si el usuario no eligió manualmente.
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+        if (localStorage.getItem('theme')) return;
+        applyTheme(e.matches ? 'dark' : 'light');
+    });
+}
+
+// === Router & bootstrap ===
+
 function init() {
-    navButtons.forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            const routeName = e.currentTarget.dataset.route;
+    initTheme();
+
+    navLinks.forEach(link => {
+        // Setear href dinámicamente al basePath para que ctrl+click / middle-click
+        // funcionen correctamente cuando la app no vive en la raíz del dominio.
+        const routeName = link.dataset.route;
+        if (Object.hasOwn(routes, routeName)) {
+            link.href = pathFor(routeName);
+        }
+        link.addEventListener('click', (e) => {
+            // Respetar modifiers para abrir en nueva pestaña / nueva ventana.
+            if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+            e.preventDefault();
             if (routeName === activeRoute) return;
             if (!Object.hasOwn(routes, routeName)) return;
             navigate(routeName);
@@ -73,6 +131,41 @@ function navigate(routeName) {
     handleRouteChange(false);
 }
 
+// Recarga la ruta actual abortando fetches en vuelo y creando un AbortController
+// nuevo. Preserva la posición de scroll. Usado por el botón "Actualizar" para
+// no bypasear el patrón de cancelación del router.
+async function reloadCurrentRoute() {
+    if (!activeRoute || activeRoute === ROUTE.HOME) return;
+    const scrollY = window.scrollY;
+    currentController?.abort();
+    currentController = new AbortController();
+    await routes[activeRoute]();
+    window.scrollTo({ top: scrollY, behavior: 'instant' });
+}
+
+// Wrapper de fetch que aplica timeout sin pisar el AbortController del router.
+// Compone dos signals con AbortSignal.any: el del router (cancelación por cambio
+// de ruta) y uno local con timeout. Si el timeout fue el que disparó, traduce el
+// AbortError en un Error con mensaje claro para que el caller pueda mostrarlo.
+// AbortSignal.any tiene soporte universal en navegadores modernos (Chrome 116+,
+// Firefox 124+, Safari 17.4+).
+async function fetchWithTimeout(url, { timeout = FETCH_TIMEOUT_MS } = {}) {
+    const timeoutController = new AbortController();
+    const timeoutId = setTimeout(() => timeoutController.abort(), timeout);
+    const signals = [currentController?.signal, timeoutController.signal].filter(Boolean);
+    const signal = AbortSignal.any(signals);
+    try {
+        return await fetch(url, { signal });
+    } catch (error) {
+        if (error.name === 'AbortError' && timeoutController.signal.aborted) {
+            throw new Error('La conexión tardó demasiado. Probá de nuevo.');
+        }
+        throw error;
+    } finally {
+        clearTimeout(timeoutId);
+    }
+}
+
 async function handleRouteChange(isInitial) {
     const routeName = parsePath() ?? ROUTE.HOME;
 
@@ -90,24 +183,24 @@ async function handleRouteChange(isInitial) {
     activeRoute = routeName;
     window.dispatchEvent(new CustomEvent('routechange', { detail: { route: routeName } }));
 
-    const btn = document.querySelector(`aside nav button[data-route="${routeName}"]`);
-    if (btn) updateActiveButton(btn);
+    const link = document.querySelector(`.sidebar a[data-route="${routeName}"]`);
+    if (link) updateActiveButton(link);
     updateTitle(routeName);
 
     await routes[routeName]();
     if (!isInitial && activeRoute === routeName) focusMainHeading();
 }
 
-function updateActiveButton(activeBtn) {
-    navButtons.forEach(btn => {
-        btn.classList.remove('active');
-        btn.removeAttribute('aria-current');
+function updateActiveButton(activeLink) {
+    navLinks.forEach(link => {
+        link.classList.remove('active');
+        link.removeAttribute('aria-current');
     });
-    activeBtn.classList.add('active');
-    activeBtn.setAttribute('aria-current', 'page');
+    activeLink.classList.add('active');
+    activeLink.setAttribute('aria-current', 'page');
 
     const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    activeBtn.scrollIntoView({
+    activeLink.scrollIntoView({
         behavior: prefersReduced ? 'auto' : 'smooth',
         inline: 'center',
         block: 'nearest'
@@ -121,11 +214,14 @@ function updateTitle(routeName) {
 
 function focusMainHeading() {
     const heading = mainContainer.querySelector('h1');
+    // Foco programático: los screen readers anuncian la nueva sección al cambiar de ruta.
     if (heading) {
         heading.tabIndex = -1;
         heading.focus();
     }
 }
+
+// === UI helpers (skeletons, errores, estados vacíos) ===
 
 function showSkeleton(count = ITEMS_PER_PAGE) {
     mainContainer.innerHTML = '';
@@ -183,6 +279,7 @@ function showError(message, container = mainContainer, onRetry = null) {
 
 function humanizeError(error) {
     console.error('[App error]', error);
+    // fetch() solo tira TypeError ante fallas de red; SyntaxError viene de un JSON inválido.
     if (error instanceof TypeError) {
         return 'No se pudo conectar. Revisá tu conexión.';
     }
@@ -200,6 +297,8 @@ function showEmptyState(grid, message = 'No se encontraron resultados.') {
     grid.appendChild(empty);
 }
 
+// === Vistas: home y galerías ===
+
 function renderHome() {
     const phrases = [
         { text: "La tecnología es mejor cuando une a las personas.", className: "shadow-1" },
@@ -209,6 +308,8 @@ function renderHome() {
 
     const selected = phrases[Math.floor(Math.random() * phrases.length)];
 
+    // innerHTML es seguro acá: todas las strings son hardcoded en el módulo,
+    // ningún valor proviene de input del usuario ni de respuestas de APIs.
     mainContainer.innerHTML = `
         <h1 class="content-title">Página de Inicio</h1>
 
@@ -222,10 +323,40 @@ function renderHome() {
                 técnica sino también la gestión eficiente de proyectos y nuevas tecnologías de la Web 2.0.
             </p>
         </section>
+
+        <section aria-label="Explorá las galerías">
+            <div class="home-cta-grid">
+                <a href="${pathFor(ROUTE.CATS)}" class="home-cta" data-route="${ROUTE.CATS}">
+                    <h3 class="home-cta-title">
+                        Galería de gatos
+                        <span class="home-cta-arrow" aria-hidden="true">→</span>
+                    </h3>
+                    <p class="home-cta-desc">Imágenes aleatorias desde The Cat API con nombres asignados al azar.</p>
+                </a>
+                <a href="${pathFor(ROUTE.CARS)}" class="home-cta" data-route="${ROUTE.CARS}">
+                    <h3 class="home-cta-title">
+                        Galería de autos
+                        <span class="home-cta-arrow" aria-hidden="true">→</span>
+                    </h3>
+                    <p class="home-cta-desc">Fotos de supercars desde Pixabay con paginación y búsqueda por tags.</p>
+                </a>
+            </div>
+        </section>
     `;
+
+    // Interceptar clicks en las CTAs para navegar via router (SPA) en vez de
+    // recargar la página, manteniendo modifiers para abrir en nueva pestaña.
+    mainContainer.querySelectorAll('.home-cta[data-route]').forEach(cta => {
+        cta.addEventListener('click', (e) => {
+            if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+            e.preventDefault();
+            const routeName = cta.dataset.route;
+            if (Object.hasOwn(routes, routeName)) navigate(routeName);
+        });
+    });
 }
 
-function createGallerySection({ titleText, refreshId, refreshText, onRefresh, loadMoreText }) {
+function createGallerySection({ titleText, refreshId, refreshText, loadMoreText }) {
     mainContainer.innerHTML = '';
 
     const header = document.createElement('div');
@@ -250,7 +381,11 @@ function createGallerySection({ titleText, refreshId, refreshText, onRefresh, lo
     refreshBtn.id = refreshId;
     refreshBtn.className = 'btn-secondary';
     refreshBtn.textContent = `↻ ${refreshText}`;
-    refreshBtn.addEventListener('click', onRefresh);
+    refreshBtn.addEventListener('click', () => {
+        if (refreshBtn.disabled) return;
+        refreshBtn.disabled = true;
+        reloadCurrentRoute();
+    });
 
     header.appendChild(titleGroup);
     header.appendChild(refreshBtn);
@@ -332,22 +467,35 @@ function openCardModal({ imgSrc, alt, name }) {
     closeBtn.type = 'button';
     closeBtn.className = 'modal-close';
     closeBtn.setAttribute('aria-label', 'Cerrar imagen');
+    closeBtn.title = 'Cerrar (Esc)';
     closeBtn.textContent = '×';
+
+    const skeleton = document.createElement('div');
+    skeleton.className = 'modal-img-skeleton';
+    skeleton.setAttribute('role', 'status');
+    skeleton.setAttribute('aria-label', 'Cargando imagen');
 
     const img = document.createElement('img');
     img.className = 'modal-img';
     img.alt = alt;
+    img.hidden = true;
 
     const title = document.createElement('p');
     title.className = 'modal-title';
     title.textContent = name;
 
     dialog.appendChild(closeBtn);
+    dialog.appendChild(skeleton);
     dialog.appendChild(img);
     dialog.appendChild(title);
     modal.appendChild(dialog);
 
+    img.addEventListener('load', () => {
+        skeleton.remove();
+        img.hidden = false;
+    });
     img.addEventListener('error', () => {
+        skeleton.remove();
         img.remove();
         const placeholder = document.createElement('div');
         placeholder.className = 'modal-img-error';
@@ -357,6 +505,10 @@ function openCardModal({ imgSrc, alt, name }) {
     img.src = imgSrc;
 
     const close = () => {
+        // Guard idempotente: si el cierre ya está en curso (ej. Esc + routechange
+        // disparan close en simultáneo), no acumular un segundo listener de
+        // animationend ni re-disparar la lógica de cleanup.
+        if (modal.classList.contains('modal-closing')) return;
         modal.classList.add('modal-closing');
         modal.addEventListener('animationend', () => {
             modal.close();
@@ -396,6 +548,7 @@ const catNames = [
     "Gandalf", "Minerva", "Aquiles", "Pippin", "Toby"
 ];
 
+// Fisher-Yates shuffle: orden aleatorio uniforme en O(n).
 function shuffleNames() {
     const shuffled = [...catNames];
     for (let i = shuffled.length - 1; i > 0; i--) {
@@ -405,6 +558,8 @@ function shuffleNames() {
     return shuffled;
 }
 
+// Orquesta una galería: skeleton → fetch → render → paginación → manejo de errores.
+// Cada ruta inyecta su estrategia específica (fetchPage, mapItem, dedupeBy).
 async function loadGallery({ routeName, section, fetchPage, dedupeBy, mapItem, loadMoreErrorPrefix }) {
     showSkeleton();
     try {
@@ -418,7 +573,11 @@ async function loadGallery({ routeName, section, fetchPage, dedupeBy, mapItem, l
         let exhausted = false;
 
         const updateCounter = () => {
-            counter.textContent = `Mostrando ${totalItems} de ${MAX_ITEMS}`;
+            counter.classList.add('is-updating');
+            counter.textContent = exhausted
+                ? `Mostrando ${totalItems} resultados`
+                : `Mostrando ${totalItems} de ${MAX_ITEMS}`;
+            requestAnimationFrame(() => counter.classList.remove('is-updating'));
         };
 
         const render = (items) => {
@@ -473,6 +632,7 @@ async function loadGallery({ routeName, section, fetchPage, dedupeBy, mapItem, l
                 if (activeRoute !== routeName) return;
                 if (items.length === 0) {
                     exhausted = true;
+                    updateCounter();
                     return;
                 }
                 render(items);
@@ -498,9 +658,8 @@ async function loadGallery({ routeName, section, fetchPage, dedupeBy, mapItem, l
 
 function fetchCats() {
     const fetchPage = async () => {
-        const response = await fetch(
-            `https://api.thecatapi.com/v1/images/search?limit=${ITEMS_PER_PAGE}`,
-            { signal: currentController?.signal }
+        const response = await fetchWithTimeout(
+            `https://api.thecatapi.com/v1/images/search?limit=${ITEMS_PER_PAGE}`
         );
         if (!response.ok) throw new Error('Error en la API de gatos');
         return response.json();
@@ -518,7 +677,6 @@ function fetchCats() {
             titleText: 'Gatitos Tiernos',
             refreshId: 'refresh-cats',
             refreshText: 'Actualizar',
-            onRefresh: fetchCats,
             loadMoreText: 'Cargar más michis'
         },
         fetchPage,
@@ -536,11 +694,19 @@ function fetchLuxuryCars() {
     // Pixabay permite el uso público de su API en clientes web; si el endpoint
     // se moviera a un proxy, esta key se rotaría y movería a una variable de entorno.
     const apiKey = '55650789-13538bfe7e66d705291a79be6';
-    let currentPage = Math.floor(Math.random() * PAGE_RANGE) + 1;
+
+    // Elegir página inicial random distinta de la anterior para evitar que dos
+    // refreshes consecutivos muestren el mismo set de autos.
+    let startPage;
+    do {
+        startPage = Math.floor(Math.random() * PAGE_RANGE) + 1;
+    } while (startPage === lastCarsStartPage && PAGE_RANGE > 1);
+    lastCarsStartPage = startPage;
+    let currentPage = startPage;
 
     const fetchPage = async () => {
         const url = `https://pixabay.com/api/?key=${apiKey}&q=ferrari+lamborghini+supercar&image_type=photo&orientation=horizontal&per_page=${ITEMS_PER_PAGE}&page=${currentPage}&safesearch=true`;
-        const response = await fetch(url, { signal: currentController?.signal });
+        const response = await fetchWithTimeout(url);
         if (!response.ok) throw new Error('Error al conectar con la API de autos');
         const data = await response.json();
         currentPage++;
@@ -553,7 +719,6 @@ function fetchLuxuryCars() {
             titleText: 'Autos que queremos tener',
             refreshId: 'refresh-cars',
             refreshText: 'Actualizar',
-            onRefresh: fetchLuxuryCars,
             loadMoreText: 'Cargar más autos'
         },
         fetchPage,
