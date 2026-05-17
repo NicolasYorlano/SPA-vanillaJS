@@ -110,6 +110,21 @@ function init() {
 
     const yearEl = document.querySelector('[data-year]');
     if (yearEl) yearEl.textContent = new Date().getFullYear();
+
+    watchHeaderHeight();
+}
+
+// El header cambia de altura entre desktop y mobile (column → row compacto).
+// Exponemos la altura real como CSS var --header-height para que el sidebar
+// sticky pueda offsetearse correctamente en cualquier breakpoint.
+function watchHeaderHeight() {
+    const header = document.querySelector('header');
+    if (!header) return;
+    const update = () => {
+        document.documentElement.style.setProperty('--header-height', `${header.offsetHeight}px`);
+    };
+    update();
+    new ResizeObserver(update).observe(header);
 }
 
 function pathFor(routeName) {
