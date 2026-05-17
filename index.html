@@ -13,30 +13,23 @@
     <link rel="icon" type="image/png" href="favicon.png">
 
     <!--
-        Inline script para prevenir FOUC (Flash of Unstyled Content) en dark mode.
-        scripts.js es un ES module y se ejecuta deferred (después del primer paint).
-        Si dejáramos la lógica del tema ahí, los usuarios con dark mode preferido
-        verían un flash blanco antes de que el JS aplique data-theme="dark".
-        Este script corre sincronicamente antes del CSS, evitando ese flash.
-        Patrón estándar: Next.js, Vercel, GitHub, Twitter usan la misma técnica.
+        Inline script anti-FOUC en dark mode: scripts.js es ES module (deferred) y no
+        puede aplicar el theme antes del primer paint. Este script sí, porque corre
+        sincronicamente antes del CSS. Patrón usado por Next.js, Vercel, GitHub.
     -->
     <script>
         (function () {
-            // try/catch: localStorage puede tirar SecurityError en Firefox con
-            // cookies bloqueadas o en iframes con sandbox restrictivo. En esos
-            // casos caemos al default light sin romper la app.
+            // localStorage puede tirar (Firefox con cookies bloqueadas / iframes sandbox).
+            // Si falla, caemos al default light sin romper la app.
             try {
                 const stored = localStorage.getItem('theme');
                 const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
                 const theme = stored || (prefersDark ? 'dark' : 'light');
                 if (theme === 'dark') {
                     document.documentElement.setAttribute('data-theme', 'dark');
-                    // Pre-sincronizar theme-color para evitar el flash en la barra
-                    // de URL del navegador mobile durante el primer paint.
-                    // IMPORTANTE: este valor debe matchear --primary-color del
-                    // bloque [data-theme="dark"] en styles.css. Si cambia ahí,
-                    // actualizar acá también. (Una vez que scripts.js carga,
-                    // applyTheme() lo re-lee desde getComputedStyle.)
+                    // Pre-sync theme-color para evitar flash en la URL bar de mobile.
+                    // Debe matchear --primary-color del bloque [data-theme="dark"] en styles.css.
+                    // applyTheme() lo refina cuando scripts.js carga.
                     const meta = document.querySelector('meta[name="theme-color"]');
                     if (meta) meta.content = '#60a5fa';
                 }

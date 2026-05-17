@@ -22,8 +22,7 @@ const navLinks = document.querySelectorAll('.sidebar a[data-route]');
 
 let activeRoute = null;
 let currentController = null;
-// Recordamos la última página inicial usada por la galería de autos para
-// garantizar que dos refreshes consecutivos nunca caigan en la misma página.
+// Evita que dos refreshes consecutivos de autos caigan en la misma página.
 let lastCarsStartPage = null;
 
 // Lookup ruta → handler. Object.create(null) evita prototype pollution.
@@ -114,9 +113,7 @@ function init() {
     watchHeaderHeight();
 }
 
-// El header cambia de altura entre desktop y mobile (column → row compacto).
-// Exponemos la altura real como CSS var --header-height para que el sidebar
-// sticky pueda offsetearse correctamente en cualquier breakpoint.
+// Expone la altura real del header como --header-height (el sidebar sticky la usa para offsetearse).
 function watchHeaderHeight() {
     const header = document.querySelector('header');
     if (!header) return;
@@ -146,24 +143,22 @@ function navigate(routeName) {
     handleRouteChange(false);
 }
 
-// Recarga la ruta actual abortando fetches en vuelo y creando un AbortController
-// nuevo. Preserva la posición de scroll. Usado por el botón "Actualizar" para
-// no bypasear el patrón de cancelación del router.
+// Recarga la ruta actual (botón "Actualizar"): aborta fetches, renueva controller, preserva scroll.
 async function reloadCurrentRoute() {
     if (!activeRoute || activeRoute === ROUTE.HOME) return;
+    const routeAtStart = activeRoute;
     const scrollY = window.scrollY;
     currentController?.abort();
     currentController = new AbortController();
     await routes[activeRoute]();
+    // Si el usuario navegó a otra ruta mientras se recargaba, no restaurar
+    // el scroll de la ruta vieja sobre el contenido nuevo.
+    if (activeRoute !== routeAtStart) return;
     window.scrollTo({ top: scrollY, behavior: 'instant' });
 }
 
-// Wrapper de fetch que aplica timeout sin pisar el AbortController del router.
-// Compone dos signals con AbortSignal.any: el del router (cancelación por cambio
-// de ruta) y uno local con timeout. Si el timeout fue el que disparó, traduce el
-// AbortError en un Error con mensaje claro para que el caller pueda mostrarlo.
-// AbortSignal.any tiene soporte universal en navegadores modernos (Chrome 116+,
-// Firefox 124+, Safari 17.4+).
+// Compone el AbortSignal del router con uno de timeout local.
+// Si dispara el timeout, traduce el AbortError en un Error con mensaje legible.
 async function fetchWithTimeout(url, { timeout = FETCH_TIMEOUT_MS } = {}) {
     const timeoutController = new AbortController();
     const timeoutId = setTimeout(() => timeoutController.abort(), timeout);
@@ -439,9 +434,10 @@ function buildCard({ imgSrc, alt, name }) {
     imgContainer.className = 'img-container';
 
     const img = document.createElement('img');
-    img.src = imgSrc;
     img.alt = alt;
     img.loading = 'lazy';
+    // Listeners ANTES de setear src: en cache HIT algunos navegadores pueden
+    // disparar load en un microtask temprano y perdemos el evento si llegamos tarde.
     img.addEventListener('load', () => {
         img.classList.add('card-img-loaded');
         imgContainer.classList.add('img-loaded');
@@ -454,6 +450,7 @@ function buildCard({ imgSrc, alt, name }) {
         placeholder.textContent = 'Imagen no disponible';
         imgContainer.appendChild(placeholder);
     });
+    img.src = imgSrc;
 
     const nameEl = document.createElement('span');
     nameEl.className = 'card-name';
@@ -520,9 +517,7 @@ function openCardModal({ imgSrc, alt, name }) {
     img.src = imgSrc;
 
     const close = () => {
-        // Guard idempotente: si el cierre ya está en curso (ej. Esc + routechange
-        // disparan close en simultáneo), no acumular un segundo listener de
-        // animationend ni re-disparar la lógica de cleanup.
+        // Guard idempotente: previene listeners duplicados si Esc y routechange disparan close en simultáneo.
         if (modal.classList.contains('modal-closing')) return;
         modal.classList.add('modal-closing');
         modal.addEventListener('animationend', () => {
@@ -705,9 +700,7 @@ function fetchCats() {
 }
 
 function fetchLuxuryCars() {
-    // API key expuesta intencionalmente: la app es estática sin backend.
-    // Pixabay permite el uso público de su API en clientes web; si el endpoint
-    // se moviera a un proxy, esta key se rotaría y movería a una variable de entorno.
+    // API key expuesta intencionalmente: app estática sin backend. Pixabay permite uso público desde cliente.
     const apiKey = '55650789-13538bfe7e66d705291a79be6';
 
     // Elegir página inicial random distinta de la anterior para evitar que dos

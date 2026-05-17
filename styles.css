@@ -55,9 +55,8 @@
     color-scheme: dark;
 
     /* === BRAND ===
-       NOTA: --primary-color (#60a5fa) está duplicado en el script inline de
-       index.html para pre-sincronizar el meta theme-color y evitar flash en
-       la barra de URL en mobile. Si cambiás este valor, actualizá también ahí. */
+       --primary-color está duplicado en el script inline de index.html (sync de theme-color).
+       Si cambia acá, actualizar ahí también. */
     --primary-color: #60a5fa;
     --primary-hover: #93c5fd;
     --primary-light: #3b82f6;
@@ -886,6 +885,11 @@ footer p {
 
 /* Tablets (portrait) y Celulares grandes */
 @media (max-width: 48em) {
+    :root {
+        /* Default para el primer paint en mobile; JS lo refina con el valor real. */
+        --header-height: 56px;
+    }
+
     body {
         grid-template-areas:
             "header"
