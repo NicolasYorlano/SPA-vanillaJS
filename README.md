@@ -8,7 +8,8 @@ APP EN PRODUCCIÓN: https://catsandcars.vercel.app/
 
 - Routing con **History API** (URLs limpias: `/`, `/cats`, `/cars`) con cancelación de fetches en vuelo al cambiar de ruta (`AbortController`).
 - **Dark mode** con toggle persistente en `localStorage`, respeto inicial a `prefers-color-scheme` y script anti-FOUC para evitar flash en el primer paint.
-- Galerías con paginación incremental (botón "cargar más"), deduplicación de resultados por ID, y botón de refresh que preserva la posición de scroll.
+- Galerías con paginación incremental (botón "cargar más") y deduplicación de resultados por ID.
+- **Cache en memoria entre navegaciones**: volver a una galería restaura los items previamente cargados (incluyendo los nombres asignados a cada gato). El botón **Actualizar** es el opt-in explícito a fetchear contenido nuevo, y preserva la posición de scroll.
 - Modal con elemento **`<dialog>` nativo**: focus trap, cierre con `Escape` o click en backdrop, skeleton de imagen mientras carga.
 - Fetch con **timeout de 10s** (`AbortSignal.any` componiendo señales de router + timeout) y traducción del `AbortError` a mensaje legible.
 - Home con cards CTA que linkean a las galerías.

@@ -118,6 +118,11 @@ body {
     min-height: 100dvh;
 }
 
+/* --- UTILIDADES --- */
+.hidden {
+    display: none;
+}
+
 /* --- ANIMATIONS --- */
 @keyframes fadeIn {
     from { opacity: 0; transform: translateY(4px); }
@@ -184,7 +189,7 @@ header {
     box-shadow: var(--shadow);
 }
 
-header span {
+.brand-link span {
     font-weight: 800;
     letter-spacing: -0.5px;
     color: var(--primary-color);
@@ -217,6 +222,13 @@ header p {
     padding: 0.4rem 0.8rem;
     border-radius: 6px;
     color: var(--text-main);
+}
+
+.brand-link {
+    text-decoration: none;
+    color: inherit;
+    display: inline-block;
+    transition: opacity 0.2s ease;
 }
 
 /* --- THEME TOGGLE --- */
@@ -253,13 +265,6 @@ header p {
         color: var(--primary-color);
         border-color: var(--primary-color);
     }
-}
-
-.brand-link {
-    text-decoration: none;
-    color: inherit;
-    display: inline-block;
-    transition: opacity 0.2s ease;
 }
 
 /* --- SIDEBAR (navegación principal) --- */
@@ -341,7 +346,7 @@ main > div {
     gap: 1.5rem;
 }
 
-/* --- ESTILOS PARA CONTENIDO INYECTADO --- */
+/* --- CONTENIDO INYECTADO --- */
 .content-title {
     font-size: 1.5rem;
     font-weight: 700;
@@ -699,10 +704,6 @@ main > div {
     animation: fadeIn 0.3s ease-out;
 }
 
-.hidden {
-    display: none;
-}
-
 /* --- MODAL --- */
 .modal-backdrop {
     position: fixed;
@@ -760,8 +761,7 @@ dialog.modal-backdrop::backdrop {
     top: 0.5rem;
     right: 0.5rem;
     background: var(--modal-close-bg);
-    /* Siempre blanco: el fondo del botón es overlay translúcido en ambos themes
-       y blanco contrasta con ambos (gris oscuro en light, gris medio en dark). */
+    /* Siempre blanco: el fondo es overlay translúcido en ambos themes, blanco contrasta con los dos. */
     color: #fff;
     border: none;
     width: 36px;
@@ -912,8 +912,7 @@ footer p {
         text-align: left;
     }
 
-    /* En mobile el title group y el role badge no aportan info crítica;
-       el usuario ya está en la app y sabe dónde está. */
+    /* En mobile el title group y el role badge no aportan info crítica. */
     .header-title-group,
     .role-badge {
         display: none;

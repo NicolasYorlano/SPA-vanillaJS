@@ -22,8 +22,14 @@ const navLinks = document.querySelectorAll('.sidebar a[data-route]');
 
 let activeRoute = null;
 let currentController = null;
-// Evita que dos refreshes consecutivos de autos caigan en la misma página.
-let lastCarsStartPage = null;
+
+// Cache en memoria: preserva items + nombres entre navegaciones a /cats.
+// Se pierde en F5 (URLs de TheCatAPI efímeras) y al clickear "Actualizar".
+let catsCache = null; // { items: Array<{id, url, ...}>, names: Map<catId, name> }
+
+// Cache en memoria: preserva items paginados + próxima página al volver a /cars.
+// El startPage va aparte en sessionStorage y sobrevive F5; este cache no.
+let carsCache = null; // { items: Array<{id, ...}>, nextPage: number }
 
 // Lookup ruta → handler. Object.create(null) evita prototype pollution.
 const routes = Object.create(null);
@@ -52,8 +58,7 @@ function applyTheme(theme) {
 }
 
 function initTheme() {
-    // El tema ya fue aplicado por el script inline del <head>. Solo configuramos
-    // el toggle y el listener de prefers-color-scheme.
+    // El tema ya fue aplicado por el inline script del <head>; acá solo enganchamos toggle + listener del sistema.
     applyTheme(getCurrentTheme());
 
     const toggle = document.querySelector('#theme-toggle');
@@ -78,8 +83,7 @@ function init() {
     initTheme();
 
     navLinks.forEach(link => {
-        // Setear href dinámicamente al basePath para que ctrl+click / middle-click
-        // funcionen correctamente cuando la app no vive en la raíz del dominio.
+        // href dinámico para que ctrl+click / middle-click funcionen cuando la app no vive en la raíz del dominio.
         const routeName = link.dataset.route;
         if (Object.hasOwn(routes, routeName)) {
             link.href = pathFor(routeName);
@@ -150,9 +154,13 @@ async function reloadCurrentRoute() {
     const scrollY = window.scrollY;
     currentController?.abort();
     currentController = new AbortController();
+    if (activeRoute === ROUTE.CARS) {
+        rotateCarsStartPage();
+        carsCache = null;
+    }
+    if (activeRoute === ROUTE.CATS) catsCache = null;
     await routes[activeRoute]();
-    // Si el usuario navegó a otra ruta mientras se recargaba, no restaurar
-    // el scroll de la ruta vieja sobre el contenido nuevo.
+    // Si navegamos a otra ruta durante el reload, no aplicar scroll de la ruta vieja sobre la nueva.
     if (activeRoute !== routeAtStart) return;
     window.scrollTo({ top: scrollY, behavior: 'instant' });
 }
@@ -354,8 +362,7 @@ function renderHome() {
         </section>
     `;
 
-    // Interceptar clicks en las CTAs para navegar via router (SPA) en vez de
-    // recargar la página, manteniendo modifiers para abrir en nueva pestaña.
+    // Interceptar clicks de CTAs para navegar vía router (no recargar), respetando modifiers.
     mainContainer.querySelectorAll('.home-cta[data-route]').forEach(cta => {
         cta.addEventListener('click', (e) => {
             if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
@@ -549,25 +556,6 @@ function openCardModal({ imgSrc, alt, name }) {
     modal.showModal();
 }
 
-const catNames = [
-    "Pelusa", "Simba", "Luna", "Garfield", "Salem",
-    "Michi", "Oliver", "Tom", "Milo", "Ágatha",
-    "Félix", "Nala", "Figaro", "Bigotes", "Mantequilla",
-    "Caspian", "Ramsés", "Copito", "Pantufla", "Doraemon", "Silvestre",
-    "Mittens", "Bastian", "Lulú", "Chispita", "Romeo", "Duquesa",
-    "Gandalf", "Minerva", "Aquiles", "Pippin", "Toby"
-];
-
-// Fisher-Yates shuffle: orden aleatorio uniforme en O(n).
-function shuffleNames() {
-    const shuffled = [...catNames];
-    for (let i = shuffled.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-    }
-    return shuffled;
-}
-
 // Orquesta una galería: skeleton → fetch → render → paginación → manejo de errores.
 // Cada ruta inyecta su estrategia específica (fetchPage, mapItem, dedupeBy).
 async function loadGallery({ routeName, section, fetchPage, dedupeBy, mapItem, loadMoreErrorPrefix }) {
@@ -614,6 +602,13 @@ async function loadGallery({ routeName, section, fetchPage, dedupeBy, mapItem, l
             return added;
         };
 
+        const showEndMessage = () => {
+            const endMsg = document.createElement('p');
+            endMsg.className = 'end-of-list';
+            endMsg.textContent = 'No hay más elementos para mostrar.';
+            loadMoreContainer.appendChild(endMsg);
+        };
+
         render(initialItems);
 
         if (totalItems === 0) {
@@ -623,12 +618,12 @@ async function loadGallery({ routeName, section, fetchPage, dedupeBy, mapItem, l
             return;
         }
 
-        const showEndMessage = () => {
-            const endMsg = document.createElement('p');
-            endMsg.className = 'end-of-list';
-            endMsg.textContent = 'No hay más elementos para mostrar.';
-            loadMoreContainer.appendChild(endMsg);
-        };
+        // Cuando el cache restaura ≥ MAX_ITEMS, no necesitamos botón de "Cargar más".
+        if (totalItems >= MAX_ITEMS) {
+            loadMoreBtn.classList.add('hidden');
+            showEndMessage();
+            return;
+        }
 
         loadMoreBtn.addEventListener('click', async () => {
             if (totalItems >= MAX_ITEMS || exhausted) return;
@@ -666,19 +661,61 @@ async function loadGallery({ routeName, section, fetchPage, dedupeBy, mapItem, l
     }
 }
 
+// === Cats ===
+
+const catNames = [
+    "Pelusa", "Simba", "Luna", "Garfield", "Salem",
+    "Michi", "Oliver", "Tom", "Milo", "Ágatha",
+    "Félix", "Nala", "Figaro", "Bigotes", "Mantequilla",
+    "Caspian", "Ramsés", "Copito", "Pantufla", "Doraemon", "Silvestre",
+    "Mittens", "Bastian", "Lulú", "Chispita", "Romeo", "Duquesa",
+    "Gandalf", "Minerva", "Aquiles", "Pippin", "Toby"
+];
+
+// Fisher-Yates shuffle: orden aleatorio uniforme en O(n).
+function shuffleNames() {
+    const shuffled = [...catNames];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
+}
+
 function fetchCats() {
+    // Si hay cache, la PRIMERA llamada a fetchPage la sirve desde memoria.
+    // Las siguientes (Cargar más) van a la API real y crecen el cache.
+    const cached = catsCache;
+    let initialServedFromCache = false;
+    const names = cached?.names ?? new Map();
+    // Excluimos del pool los nombres ya asignados en visitas previas para no duplicar.
+    const usedNames = new Set(names.values());
+    let availableNames = shuffleNames().filter(n => !usedNames.has(n));
+
     const fetchPage = async () => {
+        if (cached && !initialServedFromCache) {
+            initialServedFromCache = true;
+            return cached.items;
+        }
         const response = await fetchWithTimeout(
             `https://api.thecatapi.com/v1/images/search?limit=${ITEMS_PER_PAGE}`
         );
         if (!response.ok) throw new Error('Error en la API de gatos');
-        return response.json();
+        const batch = await response.json();
+        catsCache = {
+            items: [...(catsCache?.items ?? []), ...batch],
+            names,
+        };
+        return batch;
     };
 
-    let availableNames = shuffleNames();
-    const nextName = () => {
+    // Nombre asignado por catId, preservado entre visitas (mismo gato → mismo nombre).
+    const nextName = (catId) => {
+        if (names.has(catId)) return names.get(catId);
         if (availableNames.length === 0) availableNames = shuffleNames();
-        return availableNames.pop();
+        const name = availableNames.pop();
+        names.set(catId, name);
+        return name;
     };
 
     return loadGallery({
@@ -692,33 +729,63 @@ function fetchCats() {
         fetchPage,
         dedupeBy: cat => cat.id,
         mapItem: cat => {
-            const name = nextName();
+            const name = nextName(cat.id);
             return { imgSrc: cat.url, alt: `Gato ${name}`, name };
         },
         loadMoreErrorPrefix: 'Al cargar más michis: '
     });
 }
 
+// === Cars ===
+
+// Página inicial random de autos, persistida por sesión. El botón Actualizar la rota.
+const CARS_STARTPAGE_KEY = 'cars-startPage';
+
+function readOrCreateCarsStartPage() {
+    try {
+        const stored = sessionStorage.getItem(CARS_STARTPAGE_KEY);
+        const num = stored ? parseInt(stored, 10) : NaN;
+        if (Number.isInteger(num) && num >= 1 && num <= PAGE_RANGE) return num;
+    } catch { /* sessionStorage bloqueado (Firefox + cookies off) */ }
+    const initial = Math.floor(Math.random() * PAGE_RANGE) + 1;
+    try { sessionStorage.setItem(CARS_STARTPAGE_KEY, String(initial)); } catch { /* ignore */ }
+    return initial;
+}
+
+function rotateCarsStartPage() {
+    const prev = readOrCreateCarsStartPage();
+    let next = Math.floor(Math.random() * PAGE_RANGE) + 1;
+    if (next === prev && PAGE_RANGE > 1) next = (prev % PAGE_RANGE) + 1;
+    try { sessionStorage.setItem(CARS_STARTPAGE_KEY, String(next)); } catch { /* ignore */ }
+    return next;
+}
+
 function fetchLuxuryCars() {
     // API key expuesta intencionalmente: app estática sin backend. Pixabay permite uso público desde cliente.
     const apiKey = '55650789-13538bfe7e66d705291a79be6';
 
-    // Elegir página inicial random distinta de la anterior para evitar que dos
-    // refreshes consecutivos muestren el mismo set de autos.
-    let startPage;
-    do {
-        startPage = Math.floor(Math.random() * PAGE_RANGE) + 1;
-    } while (startPage === lastCarsStartPage && PAGE_RANGE > 1);
-    lastCarsStartPage = startPage;
-    let currentPage = startPage;
+    // Si hay cache, la PRIMERA llamada a fetchPage la sirve desde memoria y
+    // currentPage arranca donde quedó. Las siguientes van a la API real.
+    const cached = carsCache;
+    let initialServedFromCache = false;
+    let currentPage = cached ? cached.nextPage : readOrCreateCarsStartPage();
 
     const fetchPage = async () => {
+        if (cached && !initialServedFromCache) {
+            initialServedFromCache = true;
+            return cached.items;
+        }
         const url = `https://pixabay.com/api/?key=${apiKey}&q=ferrari+lamborghini+supercar&image_type=photo&orientation=horizontal&per_page=${ITEMS_PER_PAGE}&page=${currentPage}&safesearch=true`;
         const response = await fetchWithTimeout(url);
         if (!response.ok) throw new Error('Error al conectar con la API de autos');
         const data = await response.json();
+        const batch = data?.hits ?? [];
+        carsCache = {
+            items: [...(carsCache?.items ?? []), ...batch],
+            nextPage: currentPage + 1,
+        };
         currentPage++;
-        return data?.hits ?? [];
+        return batch;
     };
 
     return loadGallery({
