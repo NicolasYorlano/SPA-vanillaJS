@@ -7,14 +7,16 @@ APP EN PRODUCCIÓN: https://catsandcars.vercel.app/
 ## Features
 
 - Routing con **History API** (URLs limpias: `/`, `/cats`, `/cars`) con cancelación de fetches en vuelo al cambiar de ruta (`AbortController`).
+- **404 explícito** para cualquier ruta desconocida, preservando la URL inválida en la barra (para que el usuario vea qué path intentó). Requiere SPA fallback del server para que el render lo dispare la app y no el server.
 - **Dark mode** con toggle persistente en `localStorage`, respeto inicial a `prefers-color-scheme` y script anti-FOUC para evitar flash en el primer paint.
 - Galerías con paginación incremental (botón "cargar más") y deduplicación de resultados por ID.
-- **Cache en memoria entre navegaciones**: volver a una galería restaura los items previamente cargados (incluyendo los nombres asignados a cada gato). El botón **Actualizar** es el opt-in explícito a fetchear contenido nuevo, y preserva la posición de scroll.
+- **Cache en memoria entre navegaciones**: volver a una galería restaura los items previamente cargados (incluyendo los nombres asignados a cada gato). El botón **Actualizar** es el opt-in explícito a fetchear contenido nuevo (con feedback "Actualizando..." mientras corre) y preserva la posición de scroll.
 - Modal con elemento **`<dialog>` nativo**: focus trap, cierre con `Escape` o click en backdrop, skeleton de imagen mientras carga.
 - Fetch con **timeout de 10s** (`AbortSignal.any` componiendo señales de router + timeout) y traducción del `AbortError` a mensaje legible.
 - Home con cards CTA que linkean a las galerías.
 - Skeleton loaders durante el fetch inicial y mientras carga la imagen del modal.
 - Estados de error tipados (network, timeout, JSON inválido) con botón de reintento global y por-acción.
+- **Content Security Policy** declarada via `<meta http-equiv>`: limita imágenes a los CDNs de las APIs y `connect-src` a sus endpoints, defensa en profundidad contra XSS si se filtra contenido externo.
 - Meta tags para SEO básico (`description`, `theme-color` sincronizado al tema activo, `canonical`).
 - Fallback con `<noscript>` para usuarios con JavaScript desactivado.
 - Soporte de `prefers-reduced-motion` y `prefers-color-scheme`.
@@ -55,10 +57,10 @@ La app usa History API, lo que implica URLs como `/cats` en lugar de `#cats`. Es
 | Acción | Resultado |
 |---|---|
 | Entrar desde la raíz y navegar haciendo clic en los botones | OK |
-| Recargar (F5) estando en una ruta interna | 404 |
-| Pegar la URL de una ruta interna en una pestaña nueva | 404 |
+| Recargar (F5) estando en una ruta interna válida (`/cats`, `/cars`) | 404 del server (HTML genérico de Live Server) |
+| Pegar una URL desconocida en una pestaña nueva | 404 del server — el 404 explícito de la app **no** llega a renderizarse |
 
-Esta limitación **solo afecta al desarrollo local**. En producción (Vercel) no aparece porque el `vercel.json` configura SPA fallback automáticamente.
+Esta limitación **solo afecta al desarrollo local**. En producción (Vercel) el `vercel.json` configura SPA fallback, así que tanto las rutas válidas como las inválidas llegan al `index.html` y el router del cliente decide qué mostrar (galería o página 404 de la app).
 
 Si te molesta durante el desarrollo, dos alternativas opcionales:
 

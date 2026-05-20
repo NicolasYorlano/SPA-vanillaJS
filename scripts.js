@@ -8,23 +8,25 @@ const BASE_PATH = new URL('.', import.meta.url).pathname.replace(/\/$/, '');
 const ROUTE = Object.freeze({
     HOME: 'home',
     CATS: 'cats',
-    CARS: 'cars'
+    CARS: 'cars',
+    NOT_FOUND: 'not-found'
 });
 
 const ROUTE_TITLES = {
     [ROUTE.HOME]: 'Inicio',
     [ROUTE.CATS]: 'Gatitos',
-    [ROUTE.CARS]: 'Autos'
+    [ROUTE.CARS]: 'Autos',
+    [ROUTE.NOT_FOUND]: 'Página no encontrada'
 };
 
-const mainContainer = document.querySelector('#root');
+const mainContainer = document.querySelector('#main');
 const navLinks = document.querySelectorAll('.sidebar a[data-route]');
 
 let activeRoute = null;
 let currentController = null;
 
 // Cache en memoria: preserva items + nombres entre navegaciones a /cats.
-// Se pierde en F5 (URLs de TheCatAPI efímeras) y al clickear "Actualizar".
+// Se pierde en F5 y al clickear "Actualizar".
 let catsCache = null; // { items: Array<{id, url, ...}>, names: Map<catId, name> }
 
 // Cache en memoria: preserva items paginados + próxima página al volver a /cars.
@@ -36,8 +38,17 @@ const routes = Object.create(null);
 routes[ROUTE.HOME] = renderHome;
 routes[ROUTE.CATS] = fetchCats;
 routes[ROUTE.CARS] = fetchLuxuryCars;
+routes[ROUTE.NOT_FOUND] = renderNotFound;
 
 // === Theme ===
+
+// localStorage puede tirar SecurityError en Firefox con cookies bloqueadas o iframes sandbox.
+function safeStorageGet(key) {
+    try { return localStorage.getItem(key); } catch { return null; }
+}
+function safeStorageSet(key, value) {
+    try { localStorage.setItem(key, value); } catch { /* ignore */ }
+}
 
 function getCurrentTheme() {
     return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
@@ -50,29 +61,27 @@ function applyTheme(theme) {
         document.documentElement.removeAttribute('data-theme');
     }
     // Sincronizar el meta theme-color (afecta el color de la barra de URL en mobile)
-    const primary = getComputedStyle(document.documentElement)
-        .getPropertyValue('--primary-color')
-        .trim();
+    const primary = getComputedStyle(document.documentElement).getPropertyValue('--primary-color').trim();
     const meta = document.querySelector('meta[name="theme-color"]');
     if (meta && primary) meta.content = primary;
 }
 
 function initTheme() {
-    // El tema ya fue aplicado por el inline script del <head>; acá solo enganchamos toggle + listener del sistema.
+    // El tema ya fue aplicado por el inline script del <head>; acá solo se engancha él toggle + listener del sistema.
     applyTheme(getCurrentTheme());
 
     const toggle = document.querySelector('#theme-toggle');
     if (toggle) {
         toggle.addEventListener('click', () => {
             const next = getCurrentTheme() === 'dark' ? 'light' : 'dark';
-            localStorage.setItem('theme', next);
+            safeStorageSet('theme', next);
             applyTheme(next);
         });
     }
 
-    // Reaccionar a cambios del sistema solo si el usuario no eligió manualmente.
+    // Reaccionar a cambios del sistema SOLO SI el usuario NO eligió manualmente.
     window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
-        if (localStorage.getItem('theme')) return;
+        if (safeStorageGet('theme')) return;
         applyTheme(e.matches ? 'dark' : 'light');
     });
 }
@@ -185,11 +194,16 @@ async function fetchWithTimeout(url, { timeout = FETCH_TIMEOUT_MS } = {}) {
 }
 
 async function handleRouteChange(isInitial) {
-    const routeName = parsePath() ?? ROUTE.HOME;
+    const parsed = parsePath();
+    const routeName = parsed ?? ROUTE.NOT_FOUND;
 
-    const canonical = pathFor(routeName);
-    if (location.pathname !== canonical) {
-        history.replaceState({}, '', canonical);
+    // Solo normalizamos la URL si parseamos una ruta conocida. Si es 404,
+    // preservamos la URL original para que el usuario vea qué path intentó.
+    if (parsed) {
+        const canonical = pathFor(routeName);
+        if (location.pathname !== canonical) {
+            history.replaceState({}, '', canonical);
+        }
     }
 
     if (routeName === activeRoute) return;
@@ -295,16 +309,15 @@ function showError(message, container = mainContainer, onRetry = null) {
     container.appendChild(errorDiv);
 }
 
+// fetch() solo tira TypeError ante fallas de red; SyntaxError viene de un JSON inválido.
 function humanizeError(error) {
-    console.error('[App error]', error);
-    // fetch() solo tira TypeError ante fallas de red; SyntaxError viene de un JSON inválido.
-    if (error instanceof TypeError) {
-        return 'No se pudo conectar. Revisá tu conexión.';
-    }
-    if (error instanceof SyntaxError) {
-        return 'Respuesta inválida del servidor.';
-    }
+    if (error instanceof TypeError) return 'No se pudo conectar. Revisá tu conexión.';
+    if (error instanceof SyntaxError) return 'Respuesta inválida del servidor.';
     return error.message;
+}
+
+function logError(error) {
+    console.error('[App error]', error);
 }
 
 function showEmptyState(grid, message = 'No se encontraron resultados.') {
@@ -323,54 +336,92 @@ function renderHome() {
         { text: "El software es una combinación de arte e ingeniería.", className: "shadow-2" },
         { text: "La innovación distingue a los líderes de los seguidores.", className: "shadow-3" }
     ];
-
     const selected = phrases[Math.floor(Math.random() * phrases.length)];
 
-    // innerHTML es seguro acá: todas las strings son hardcoded en el módulo,
-    // ningún valor proviene de input del usuario ni de respuestas de APIs.
-    mainContainer.innerHTML = `
-        <h1 class="content-title">Página de Inicio</h1>
+    mainContainer.replaceChildren();
 
-        <h2 class="${selected.className} highlighted-quote">"${selected.text}"</h2>
+    const title = document.createElement('h1');
+    title.className = 'content-title';
+    title.textContent = 'Página de Inicio';
 
-        <section class="expectations-paragraph">
-            <h3>Mis Expectativas</h3>
-            <p>
-                Espero profundizar mis conocimientos en el desarrollo de aplicaciones web
-                modernas con html, css y javascript, comprendiendo no solo la implementación
-                técnica sino también la gestión eficiente de proyectos y nuevas tecnologías de la Web 2.0.
-            </p>
-        </section>
+    const quote = document.createElement('h2');
+    quote.className = `${selected.className} highlighted-quote`;
+    quote.textContent = `"${selected.text}"`;
 
-        <section aria-label="Explorá las galerías">
-            <div class="home-cta-grid">
-                <a href="${pathFor(ROUTE.CATS)}" class="home-cta" data-route="${ROUTE.CATS}">
-                    <h3 class="home-cta-title">
-                        Galería de gatos
-                        <span class="home-cta-arrow" aria-hidden="true">→</span>
-                    </h3>
-                    <p class="home-cta-desc">Imágenes aleatorias desde The Cat API con nombres asignados al azar.</p>
-                </a>
-                <a href="${pathFor(ROUTE.CARS)}" class="home-cta" data-route="${ROUTE.CARS}">
-                    <h3 class="home-cta-title">
-                        Galería de autos
-                        <span class="home-cta-arrow" aria-hidden="true">→</span>
-                    </h3>
-                    <p class="home-cta-desc">Fotos de supercars desde Pixabay con paginación y búsqueda por tags.</p>
-                </a>
-            </div>
-        </section>
-    `;
+    const expectations = document.createElement('section');
+    expectations.className = 'expectations-paragraph';
+    const expectTitle = document.createElement('h3');
+    expectTitle.textContent = 'Mis Expectativas';
+    const expectText = document.createElement('p');
+    expectText.textContent = 'Espero profundizar mis conocimientos en el desarrollo de aplicaciones web modernas con html, css y javascript, comprendiendo no solo la implementación técnica sino también la gestión eficiente de proyectos y nuevas tecnologías de la Web 2.0.';
+    expectations.append(expectTitle, expectText);
 
-    // Interceptar clicks de CTAs para navegar vía router (no recargar), respetando modifiers.
-    mainContainer.querySelectorAll('.home-cta[data-route]').forEach(cta => {
-        cta.addEventListener('click', (e) => {
-            if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-            e.preventDefault();
-            const routeName = cta.dataset.route;
-            if (Object.hasOwn(routes, routeName)) navigate(routeName);
-        });
+    const ctas = document.createElement('section');
+    ctas.setAttribute('aria-label', 'Explorá las galerías');
+    const ctaGrid = document.createElement('div');
+    ctaGrid.className = 'home-cta-grid';
+    ctaGrid.append(
+        buildHomeCta(ROUTE.CATS, 'Galería de gatos', 'Imágenes aleatorias desde The Cat API con nombres asignados al azar.'),
+        buildHomeCta(ROUTE.CARS, 'Galería de autos', 'Fotos de supercars desde Pixabay con paginación y búsqueda por tags.')
+    );
+    ctas.append(ctaGrid);
+
+    mainContainer.append(title, quote, expectations, ctas);
+}
+
+function renderNotFound() {
+    mainContainer.replaceChildren();
+
+    const title = document.createElement('h1');
+    title.className = 'content-title';
+    title.textContent = 'Página no encontrada';
+
+    const message = document.createElement('p');
+    message.className = 'not-found-message';
+    message.textContent = 'La página que buscás no existe o fue movida.';
+
+    const homeLink = document.createElement('a');
+    homeLink.href = pathFor(ROUTE.HOME);
+    homeLink.className = 'btn-primary';
+    homeLink.textContent = '← Volver al inicio';
+    homeLink.addEventListener('click', (e) => {
+        if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+        e.preventDefault();
+        navigate(ROUTE.HOME);
     });
+
+    mainContainer.append(title, message, homeLink);
+}
+
+function buildHomeCta(routeName, titleText, descText) {
+    const cta = document.createElement('a');
+    cta.href = pathFor(routeName);
+    cta.className = 'home-cta';
+    cta.dataset.route = routeName;
+
+    const title = document.createElement('h3');
+    title.className = 'home-cta-title';
+    title.append(document.createTextNode(`${titleText} `));
+    const arrow = document.createElement('span');
+    arrow.className = 'home-cta-arrow';
+    arrow.setAttribute('aria-hidden', 'true');
+    arrow.textContent = '→';
+    title.append(arrow);
+
+    const desc = document.createElement('p');
+    desc.className = 'home-cta-desc';
+    desc.textContent = descText;
+
+    cta.append(title, desc);
+
+    // Interceptar para navegar vía router (no recargar), respetando modifiers.
+    cta.addEventListener('click', (e) => {
+        if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+        e.preventDefault();
+        navigate(routeName);
+    });
+
+    return cta;
 }
 
 function createGallerySection({ titleText, refreshId, refreshText, loadMoreText }) {
@@ -401,6 +452,7 @@ function createGallerySection({ titleText, refreshId, refreshText, loadMoreText 
     refreshBtn.addEventListener('click', () => {
         if (refreshBtn.disabled) return;
         refreshBtn.disabled = true;
+        refreshBtn.textContent = 'Actualizando...';
         reloadCurrentRoute();
     });
 
@@ -643,6 +695,7 @@ async function loadGallery({ routeName, section, fetchPage, dedupeBy, mapItem, l
                 render(items);
             } catch (error) {
                 if (error.name === 'AbortError') return;
+                logError(error);
                 showError(loadMoreErrorPrefix + humanizeError(error), loadMoreError);
             } finally {
                 if (totalItems >= MAX_ITEMS || exhausted) {
@@ -657,6 +710,7 @@ async function loadGallery({ routeName, section, fetchPage, dedupeBy, mapItem, l
     } catch (error) {
         if (error.name === 'AbortError') return;
         if (activeRoute !== routeName) return;
+        logError(error);
         showError(humanizeError(error), mainContainer, () => routes[routeName]());
     }
 }

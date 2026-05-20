@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' https://*.thecatapi.com https://pixabay.com https://cdn.pixabay.com data:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://api.thecatapi.com https://pixabay.com">
+
     <title>TP1 - TyGW</title>
     <meta name="description" content="Galería de imágenes que consume APIs públicas (The Cat API y Pixabay). SPA construida con HTML, CSS y JavaScript vanilla.">
     <meta name="author" content="Nicolás Yorlano">
@@ -92,7 +93,7 @@
     </nav>
 
     <main>
-        <div id="root">
+        <div id="main">
             <!-- Se inyecta por JS -->
         </div>
     </main>

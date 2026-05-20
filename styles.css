@@ -154,7 +154,7 @@ body {
     to   { opacity: 0; transform: scale(0.92); }
 }
 
-#root > * {
+#main > * {
     animation: fadeIn 0.18s ease-out;
 }
 
@@ -475,7 +475,9 @@ main > div {
 
 .skeleton-name {
     width: 60%;
-    height: 1rem;
+    /* Match con la altura renderizada de .card-name (font-size 1rem × line-height 1.5)
+       para evitar layout shift al reemplazar skeleton por contenido real. */
+    height: 1.5rem;
     margin-top: 0.625rem;
     border-radius: 4px;
     background: var(--skeleton-bg);
@@ -522,8 +524,16 @@ main > div {
     animation: fadeIn 0.18s ease-out;
 }
 
+.not-found-message {
+    color: var(--text-muted);
+    font-size: 1rem;
+    line-height: 1.6;
+    max-width: 32rem;
+}
+
 /* --- BUTTONS --- */
 .btn-primary {
+    display: inline-block;
     background-color: var(--primary-color);
     color: var(--surface);
     border: none;
@@ -532,6 +542,7 @@ main > div {
     cursor: pointer;
     font-weight: 600;
     font-size: 0.9rem;
+    text-decoration: none;
     transition: var(--transition);
 }
 
@@ -934,7 +945,6 @@ footer p {
         flex-direction: row;
         overflow-x: auto;
         gap: 0.5rem;
-        padding-bottom: 0.2rem;
         scrollbar-width: none;
         mask-image: linear-gradient(to right, black 88%, transparent 100%);
         -webkit-mask-image: linear-gradient(to right, black 88%, transparent 100%);
