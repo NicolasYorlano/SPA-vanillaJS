@@ -10,7 +10,7 @@ APP EN PRODUCCIÓN: https://catsandcars.vercel.app/
 - **404 explícito** para cualquier ruta desconocida, preservando la URL inválida en la barra (para que el usuario vea qué path intentó). Requiere SPA fallback del server para que el render lo dispare la app y no el server.
 - **Dark mode** con toggle persistente en `localStorage`, respeto inicial a `prefers-color-scheme` y script anti-FOUC para evitar flash en el primer paint.
 - Galerías con paginación incremental (botón "cargar más") y deduplicación de resultados por ID.
-- **Cache en memoria entre navegaciones**: volver a una galería restaura los items previamente cargados (incluyendo los nombres asignados a cada gato). El botón **Actualizar** es el opt-in explícito a fetchear contenido nuevo (con feedback "Actualizando..." mientras corre) y preserva la posición de scroll.
+- **Cache persistente por sesión** (`sessionStorage`): volver a una galería —o recargar con F5 dentro de la misma pestaña— restaura los items previamente cargados, los nombres asignados a cada gato y la página de paginación. El botón **Actualizar** es el **único** opt-in explícito a fetchear contenido nuevo (con feedback "Actualizando..." mientras corre) y preserva la posición de scroll. Cerrar la pestaña descarta todo el cache.
 - Modal con elemento **`<dialog>` nativo**: focus trap, cierre con `Escape` o click en backdrop, skeleton de imagen mientras carga.
 - Fetch con **timeout de 10s** (`AbortSignal.any` componiendo señales de router + timeout) y traducción del `AbortError` a mensaje legible.
 - Home con cards CTA que linkean a las galerías.

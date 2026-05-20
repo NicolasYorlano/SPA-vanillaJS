@@ -25,12 +25,14 @@ const navLinks = document.querySelectorAll('.sidebar a[data-route]');
 let activeRoute = null;
 let currentController = null;
 
-// Cache en memoria: preserva items + nombres entre navegaciones a /cats.
-// Se pierde en F5 y al clickear "Actualizar".
+// Cache de items + nombres asignados. Persistido en sessionStorage para que
+// sobreviva F5 — el contrato es que "Actualizar" es el ÚNICO opt-in explícito
+// a contenido nuevo. Se hidrata en init() y se borra al hacer Actualizar.
 let catsCache = null; // { items: Array<{id, url, ...}>, names: Map<catId, name> }
 
-// Cache en memoria: preserva items paginados + próxima página al volver a /cars.
-// El startPage va aparte en sessionStorage y sobrevive F5; este cache no.
+// Cache de items paginados + próxima página. Misma estrategia de persistencia
+// que catsCache. CARS_STARTPAGE_KEY vive aparte porque se rota explícitamente
+// al hacer Actualizar (mientras este cache se borra entero).
 let carsCache = null; // { items: Array<{id, ...}>, nextPage: number }
 
 // Lookup ruta → handler. Object.create(null) evita prototype pollution.
@@ -50,6 +52,17 @@ function safeStorageSet(key, value) {
     try { localStorage.setItem(key, value); } catch { /* ignore */ }
 }
 
+// sessionStorage: misma defensa (mismo tipo de error en Firefox + cookies off).
+function safeSessionGet(key) {
+    try { return sessionStorage.getItem(key); } catch { return null; }
+}
+function safeSessionSet(key, value) {
+    try { sessionStorage.setItem(key, value); } catch { /* quota o storage bloqueado */ }
+}
+function safeSessionRemove(key) {
+    try { sessionStorage.removeItem(key); } catch { /* ignore */ }
+}
+
 function getCurrentTheme() {
     return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
 }
@@ -60,6 +73,11 @@ function applyTheme(theme) {
     } else {
         document.documentElement.removeAttribute('data-theme');
     }
+    // Sincronizar aria-pressed (paridad de a11y con appReact). Centralizado acá
+    // para que cualquier camino que cambie el tema (click, prefers-color-scheme,
+    // init) deje el atributo consistente sin duplicar lógica.
+    const toggle = document.querySelector('#theme-toggle');
+    if (toggle) toggle.setAttribute('aria-pressed', String(theme === 'dark'));
     // Sincronizar el meta theme-color (afecta el color de la barra de URL en mobile)
     const primary = getComputedStyle(document.documentElement).getPropertyValue('--primary-color').trim();
     const meta = document.querySelector('meta[name="theme-color"]');
@@ -90,6 +108,11 @@ function initTheme() {
 
 function init() {
     initTheme();
+
+    // Hidratar caches desde sessionStorage. Si no hay nada o el JSON está roto,
+    // los loaders devuelven null y arrancamos como si fuera primer ingreso.
+    catsCache = loadCatsCache();
+    carsCache = loadCarsCache();
 
     navLinks.forEach(link => {
         // href dinámico para que ctrl+click / middle-click funcionen cuando la app no vive en la raíz del dominio.
@@ -166,8 +189,12 @@ async function reloadCurrentRoute() {
     if (activeRoute === ROUTE.CARS) {
         rotateCarsStartPage();
         carsCache = null;
+        saveCarsCache(); // borra del storage (saveX con cache=null hace remove)
     }
-    if (activeRoute === ROUTE.CATS) catsCache = null;
+    if (activeRoute === ROUTE.CATS) {
+        catsCache = null;
+        saveCatsCache();
+    }
     await routes[activeRoute]();
     // Si navegamos a otra ruta durante el reload, no aplicar scroll de la ruta vieja sobre la nueva.
     if (activeRoute !== routeAtStart) return;
@@ -717,6 +744,35 @@ async function loadGallery({ routeName, section, fetchPage, dedupeBy, mapItem, l
 
 // === Cats ===
 
+const CATS_CACHE_KEY = 'cats:cache';
+
+// Map no es JSON-serializable nativo: lo guardamos como array de entries.
+function saveCatsCache() {
+    if (!catsCache) { safeSessionRemove(CATS_CACHE_KEY); return; }
+    safeSessionSet(CATS_CACHE_KEY, JSON.stringify({
+        items: catsCache.items,
+        names: Array.from(catsCache.names.entries()),
+    }));
+}
+
+function loadCatsCache() {
+    const raw = safeSessionGet(CATS_CACHE_KEY);
+    if (!raw) return null;
+    try {
+        const parsed = JSON.parse(raw);
+        if (!Array.isArray(parsed?.items)) return null;
+        return {
+            items: parsed.items,
+            names: new Map(Array.isArray(parsed.names) ? parsed.names : []),
+        };
+    } catch {
+        // JSON corrupto (raro pero posible si alguien tocó el storage a mano):
+        // lo limpiamos para arrancar desde cero en lugar de tirar todo abajo.
+        safeSessionRemove(CATS_CACHE_KEY);
+        return null;
+    }
+}
+
 const catNames = [
     "Pelusa", "Simba", "Luna", "Garfield", "Salem",
     "Michi", "Oliver", "Tom", "Milo", "Ágatha",
@@ -760,6 +816,7 @@ function fetchCats() {
             items: [...(catsCache?.items ?? []), ...batch],
             names,
         };
+        saveCatsCache();
         return batch;
     };
 
@@ -769,6 +826,9 @@ function fetchCats() {
         if (availableNames.length === 0) availableNames = shuffleNames();
         const name = availableNames.pop();
         names.set(catId, name);
+        // Save tras cada nombre nuevo. La frecuencia es ITEMS_PER_PAGE writes por
+        // batch (6), y cada serialización es ~KBs — irrelevante en perf real.
+        saveCatsCache();
         return name;
     };
 
@@ -794,6 +854,25 @@ function fetchCats() {
 
 // Página inicial random de autos, persistida por sesión. El botón Actualizar la rota.
 const CARS_STARTPAGE_KEY = 'cars-startPage';
+const CARS_CACHE_KEY = 'cars:cache';
+
+function saveCarsCache() {
+    if (!carsCache) { safeSessionRemove(CARS_CACHE_KEY); return; }
+    safeSessionSet(CARS_CACHE_KEY, JSON.stringify(carsCache));
+}
+
+function loadCarsCache() {
+    const raw = safeSessionGet(CARS_CACHE_KEY);
+    if (!raw) return null;
+    try {
+        const parsed = JSON.parse(raw);
+        if (!Array.isArray(parsed?.items) || !Number.isInteger(parsed?.nextPage)) return null;
+        return { items: parsed.items, nextPage: parsed.nextPage };
+    } catch {
+        safeSessionRemove(CARS_CACHE_KEY);
+        return null;
+    }
+}
 
 function readOrCreateCarsStartPage() {
     try {
@@ -838,6 +917,7 @@ function fetchLuxuryCars() {
             items: [...(carsCache?.items ?? []), ...batch],
             nextPage: currentPage + 1,
         };
+        saveCarsCache();
         currentPage++;
         return batch;
     };
