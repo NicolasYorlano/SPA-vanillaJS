@@ -1,4 +1,4 @@
-/* --- VARIABLES  --- */
+/* --- VARIABLES --- */
 :root {
     color-scheme: light;
 
@@ -531,6 +531,13 @@ main > div {
     font-size: 1rem;
     line-height: 1.6;
     max-width: 32rem;
+}
+
+/* #main es flex column → sus hijos directos se estiran. El botón debe abrazar
+   su contenido, no ocupar el ancho completo. En mobile la media query le da
+   width:100% y vuelve a ser full-width (intencional ahí). */
+.not-found-home {
+    align-self: flex-start;
 }
 
 /* --- BUTTONS --- */

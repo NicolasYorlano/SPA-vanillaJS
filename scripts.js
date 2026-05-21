@@ -1,9 +1,18 @@
 const MAX_ITEMS = 30;
 const ITEMS_PER_PAGE = 6;
+// El Cat API, sin API key, ignora el parámetro `limit` y devuelve 10 ítems por
+// llamada. Lo declaramos explícito para que el skeleton y la URL coincidan con
+// lo que la API realmente entrega (cars sí respeta ITEMS_PER_PAGE en per_page).
+const CATS_PAGE_SIZE = 10;
 const PAGE_RANGE = 10; // Rango de páginas para el random inicial en la API de autos
 const FETCH_TIMEOUT_MS = 10000;
 const BASE_TITLE = document.title;
 const BASE_PATH = new URL('.', import.meta.url).pathname.replace(/\/$/, '');
+
+// Bumpear en CADA cambio de shape de algún cache persistido en sessionStorage.
+// Hidratar shape viejo con código nuevo puede crashear o leer datos inválidos —
+// un bump invalida limpiamente todos los caches viejos en el próximo F5.
+const CACHE_VERSION = 1;
 
 const ROUTE = Object.freeze({
     HOME: 'home',
@@ -42,26 +51,31 @@ routes[ROUTE.CATS] = fetchCats;
 routes[ROUTE.CARS] = fetchLuxuryCars;
 routes[ROUTE.NOT_FOUND] = renderNotFound;
 
-// === Theme ===
 
-// localStorage puede tirar SecurityError en Firefox con cookies bloqueadas o iframes sandbox.
+// === Web Storage (acceso defensivo) ===
+
+// localStorage/sessionStorage pueden tirar SecurityError en Firefox con cookies
+// bloqueadas o en iframes sandbox, y QuotaExceededError al escribir. Estos
+// wrappers son la ÚNICA vía de acceso a Web Storage en la app: si alguno falla,
+// degradamos en silencio (get → null, set/remove → no-op) sin romper nada.
 function safeStorageGet(key) {
     try { return localStorage.getItem(key); } catch { return null; }
 }
 function safeStorageSet(key, value) {
-    try { localStorage.setItem(key, value); } catch { /* ignore */ }
+    try { localStorage.setItem(key, value); } catch { /* storage bloqueado o quota */ }
 }
 
-// sessionStorage: misma defensa (mismo tipo de error en Firefox + cookies off).
 function safeSessionGet(key) {
     try { return sessionStorage.getItem(key); } catch { return null; }
 }
 function safeSessionSet(key, value) {
-    try { sessionStorage.setItem(key, value); } catch { /* quota o storage bloqueado */ }
+    try { sessionStorage.setItem(key, value); } catch { /* storage bloqueado o quota */ }
 }
 function safeSessionRemove(key) {
     try { sessionStorage.removeItem(key); } catch { /* ignore */ }
 }
+
+// === Theme ===
 
 function getCurrentTheme() {
     return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
@@ -73,9 +87,9 @@ function applyTheme(theme) {
     } else {
         document.documentElement.removeAttribute('data-theme');
     }
-    // Sincronizar aria-pressed (paridad de a11y con appReact). Centralizado acá
-    // para que cualquier camino que cambie el tema (click, prefers-color-scheme,
-    // init) deje el atributo consistente sin duplicar lógica.
+    // Sincronizar aria-pressed acá (no en el handler del toggle) para que
+    // cualquier camino que cambie el tema —click, prefers-color-scheme, init—
+    // deje el atributo consistente sin duplicar lógica.
     const toggle = document.querySelector('#theme-toggle');
     if (toggle) toggle.setAttribute('aria-pressed', String(theme === 'dark'));
     // Sincronizar el meta theme-color (afecta el color de la barra de URL en mobile)
@@ -85,7 +99,7 @@ function applyTheme(theme) {
 }
 
 function initTheme() {
-    // El tema ya fue aplicado por el inline script del <head>; acá solo se engancha él toggle + listener del sistema.
+    // El tema ya fue aplicado por el inline script del <head>; acá solo se engancha el toggle + listener del sistema.
     applyTheme(getCurrentTheme());
 
     const toggle = document.querySelector('#theme-toggle');
@@ -243,18 +257,22 @@ async function handleRouteChange(isInitial) {
     window.dispatchEvent(new CustomEvent('routechange', { detail: { route: routeName } }));
 
     const link = document.querySelector(`.sidebar a[data-route="${routeName}"]`);
-    if (link) updateActiveButton(link);
+    updateActiveNavLink(link);
     updateTitle(routeName);
 
     await routes[routeName]();
     if (!isInitial && activeRoute === routeName) focusMainHeading();
 }
 
-function updateActiveButton(activeLink) {
+function updateActiveNavLink(activeLink) {
     navLinks.forEach(link => {
         link.classList.remove('active');
         link.removeAttribute('aria-current');
     });
+    // Rutas sin link en el sidebar (ej. 404): ya limpiamos los estados
+    // activos arriba, salimos sin marcar nada — así no queda resaltado el
+    // link de la ruta anterior.
+    if (!activeLink) return;
     activeLink.classList.add('active');
     activeLink.setAttribute('aria-current', 'page');
 
@@ -283,7 +301,7 @@ function focusMainHeading() {
 // === UI helpers (skeletons, errores, estados vacíos) ===
 
 function showSkeleton(count = ITEMS_PER_PAGE) {
-    mainContainer.innerHTML = '';
+    mainContainer.replaceChildren();
     const grid = document.createElement('div');
     grid.className = 'data-grid';
     grid.setAttribute('role', 'status');
@@ -312,7 +330,7 @@ function createSkeletonCard() {
 }
 
 function showError(message, container = mainContainer, onRetry = null) {
-    container.innerHTML = '';
+    container.replaceChildren();
     const errorDiv = document.createElement('div');
     errorDiv.className = 'error-msg';
     errorDiv.setAttribute('role', 'alert');
@@ -337,10 +355,12 @@ function showError(message, container = mainContainer, onRetry = null) {
 }
 
 // fetch() solo tira TypeError ante fallas de red; SyntaxError viene de un JSON inválido.
+// El fallback final cubre el caso de que se haya tirado algo que no es un Error
+// (un string, null, etc.) — no asumimos que el input tenga .message.
 function humanizeError(error) {
     if (error instanceof TypeError) return 'No se pudo conectar. Revisá tu conexión.';
     if (error instanceof SyntaxError) return 'Respuesta inválida del servidor.';
-    return error.message;
+    return error?.message ?? 'Ocurrió un error desconocido.';
 }
 
 function logError(error) {
@@ -348,7 +368,7 @@ function logError(error) {
 }
 
 function showEmptyState(grid, message = 'No se encontraron resultados.') {
-    grid.innerHTML = '';
+    grid.replaceChildren();
     const empty = document.createElement('p');
     empty.className = 'empty-state';
     empty.textContent = message;
@@ -388,8 +408,8 @@ function renderHome() {
     const ctaGrid = document.createElement('div');
     ctaGrid.className = 'home-cta-grid';
     ctaGrid.append(
-        buildHomeCta(ROUTE.CATS, 'Galería de gatos', 'Imágenes aleatorias desde The Cat API con nombres asignados al azar.'),
-        buildHomeCta(ROUTE.CARS, 'Galería de autos', 'Fotos de supercars desde Pixabay con paginación y búsqueda por tags.')
+        createHomeCta(ROUTE.CATS, 'Galería de gatos', 'Imágenes aleatorias desde The Cat API con nombres asignados al azar.'),
+        createHomeCta(ROUTE.CARS, 'Galería de autos', 'Fotos de supercars desde Pixabay con paginación y búsqueda por tags.')
     );
     ctas.append(ctaGrid);
 
@@ -409,7 +429,7 @@ function renderNotFound() {
 
     const homeLink = document.createElement('a');
     homeLink.href = pathFor(ROUTE.HOME);
-    homeLink.className = 'btn-primary';
+    homeLink.className = 'btn-primary not-found-home';
     homeLink.textContent = '← Volver al inicio';
     homeLink.addEventListener('click', (e) => {
         if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
@@ -420,7 +440,7 @@ function renderNotFound() {
     mainContainer.append(title, message, homeLink);
 }
 
-function buildHomeCta(routeName, titleText, descText) {
+function createHomeCta(routeName, titleText, descText) {
     const cta = document.createElement('a');
     cta.href = pathFor(routeName);
     cta.className = 'home-cta';
@@ -451,8 +471,8 @@ function buildHomeCta(routeName, titleText, descText) {
     return cta;
 }
 
-function createGallerySection({ titleText, refreshId, refreshText, loadMoreText }) {
-    mainContainer.innerHTML = '';
+function createGallerySection({ titleText, refreshText, loadMoreText }) {
+    mainContainer.replaceChildren();
 
     const header = document.createElement('div');
     header.className = 'section-header';
@@ -473,15 +493,12 @@ function createGallerySection({ titleText, refreshId, refreshText, loadMoreText 
 
     const refreshBtn = document.createElement('button');
     refreshBtn.type = 'button';
-    refreshBtn.id = refreshId;
     refreshBtn.className = 'btn-secondary';
     refreshBtn.textContent = `↻ ${refreshText}`;
-    refreshBtn.addEventListener('click', () => {
-        if (refreshBtn.disabled) return;
-        refreshBtn.disabled = true;
-        refreshBtn.textContent = 'Actualizando...';
-        reloadCurrentRoute();
-    });
+    // reloadCurrentRoute reemplaza todo el contenido por el skeleton de forma
+    // síncrona, así que no hace falta deshabilitar el botón ni cambiar su
+    // texto: deja de existir antes de que el browser pinte un segundo click.
+    refreshBtn.addEventListener('click', reloadCurrentRoute);
 
     header.appendChild(titleGroup);
     header.appendChild(refreshBtn);
@@ -510,7 +527,7 @@ function createGallerySection({ titleText, refreshId, refreshText, loadMoreText 
     return { grid, loadMoreBtn, loadMoreContainer, counter, loadMoreError };
 }
 
-function buildCard({ imgSrc, alt, name }) {
+function createCard({ imgSrc, alt, name }) {
     const card = document.createElement('button');
     card.type = 'button';
     card.className = 'card';
@@ -606,12 +623,24 @@ function openCardModal({ imgSrc, alt, name }) {
         // Guard idempotente: previene listeners duplicados si Esc y routechange disparan close en simultáneo.
         if (modal.classList.contains('modal-closing')) return;
         modal.classList.add('modal-closing');
-        modal.addEventListener('animationend', () => {
+
+        // `done` hace al cleanup idempotente: lo disparan animationend Y el
+        // setTimeout de respaldo, pero solo el primero ejecuta.
+        let done = false;
+        const cleanup = () => {
+            if (done) return;
+            done = true;
             modal.close();
             modal.remove();
             window.removeEventListener('routechange', closeOnNav);
             document.body.style.overflow = previousOverflow;
-        }, { once: true });
+        };
+        // animationend = camino normal. setTimeout = red de seguridad: si la
+        // animación CSS .modal-closing no dispara (regla removida/renombrada),
+        // el modal quedaría abierto con el scroll del body bloqueado para
+        // siempre. El fallback (animación dura 0.2s) garantiza el cleanup.
+        modal.addEventListener('animationend', cleanup, { once: true });
+        setTimeout(cleanup, 400);
     };
 
     const closeOnNav = () => close();
@@ -636,16 +665,25 @@ function openCardModal({ imgSrc, alt, name }) {
 }
 
 // Orquesta una galería: skeleton → fetch → render → paginación → manejo de errores.
-// Cada ruta inyecta su estrategia específica (fetchPage, mapItem, dedupeBy).
-async function loadGallery({ routeName, section, fetchPage, dedupeBy, mapItem, loadMoreErrorPrefix }) {
-    showSkeleton();
+// Cada ruta inyecta su estrategia, con responsabilidades separadas:
+//   getCachedItems()       → estado restaurable (sync, lee cache) o null
+//   fetchPage()            → trae la próxima página de la API (pura, sin side-effects)
+//   onBatchRendered(items) → persiste el set canónico ya renderizado
+//   mapItem / dedupeBy     → transformación y deduplicación de cada item
+async function loadGallery({ routeName, section, getCachedItems, fetchPage, dedupeBy, mapItem, loadMoreErrorPrefix, onBatchRendered, skeletonCount = ITEMS_PER_PAGE }) {
+    // Cache hit → restauramos sin skeleton ni fetch (es síncrono, sin flash).
+    // Cache miss → skeleton (tantos placeholders como ítems traerá el primer
+    // batch, así no hay salto de layout cuando llegan las cards).
+    const cached = getCachedItems?.() ?? null;
+    if (!cached) showSkeleton(skeletonCount);
     try {
-        const initialItems = await fetchPage();
+        const initialItems = cached ?? await fetchPage();
         if (activeRoute !== routeName) return;
 
         const { grid, loadMoreBtn, loadMoreContainer, counter, loadMoreError } = createGallerySection(section);
 
         const seenIds = new Set();
+        const renderedItems = []; // set canónico (deduplicado + capeado) que se persiste
         let totalItems = 0;
         let exhausted = false;
 
@@ -671,7 +709,8 @@ async function loadGallery({ routeName, section, fetchPage, dedupeBy, mapItem, l
                     if (id == null || seenIds.has(id)) continue;
                     seenIds.add(id);
                 }
-                fragment.appendChild(buildCard(mapItem(item)));
+                renderedItems.push(item);
+                fragment.appendChild(createCard(mapItem(item)));
                 added++;
             }
 
@@ -688,7 +727,10 @@ async function loadGallery({ routeName, section, fetchPage, dedupeBy, mapItem, l
             loadMoreContainer.appendChild(endMsg);
         };
 
-        render(initialItems);
+        const initialAdded = render(initialItems);
+        // Persistimos solo si fue un fetch fresco que trajo items. Si vino del
+        // cache (restore), reescribir storage con datos idénticos no tiene porqué.
+        if (!cached && initialAdded > 0) onBatchRendered?.(renderedItems);
 
         if (totalItems === 0) {
             showEmptyState(grid);
@@ -707,7 +749,7 @@ async function loadGallery({ routeName, section, fetchPage, dedupeBy, mapItem, l
         loadMoreBtn.addEventListener('click', async () => {
             if (totalItems >= MAX_ITEMS || exhausted) return;
 
-            loadMoreError.innerHTML = '';
+            loadMoreError.replaceChildren();
             const originalText = loadMoreBtn.textContent;
             loadMoreBtn.textContent = 'Cargando...';
             loadMoreBtn.disabled = true;
@@ -719,7 +761,13 @@ async function loadGallery({ routeName, section, fetchPage, dedupeBy, mapItem, l
                     updateCounter();
                     return;
                 }
-                render(items);
+                // Si la página trajo items pero todos eran duplicados de lo ya
+                // mostrado, render() agrega 0. La tratamos como agotada: seguir
+                // paginando difícilmente traiga algo nuevo, y evita que el
+                // usuario clickee "Cargar más" sin que el contador se mueva.
+                const added = render(items);
+                if (added === 0) exhausted = true;
+                else onBatchRendered?.(renderedItems); // persistir solo si hubo items nuevos
             } catch (error) {
                 if (error.name === 'AbortError') return;
                 logError(error);
@@ -747,11 +795,15 @@ async function loadGallery({ routeName, section, fetchPage, dedupeBy, mapItem, l
 const CATS_CACHE_KEY = 'cats:cache';
 
 // Map no es JSON-serializable nativo: lo guardamos como array de entries.
+// Envoltura { v, data }: ver comment del CACHE_VERSION.
 function saveCatsCache() {
     if (!catsCache) { safeSessionRemove(CATS_CACHE_KEY); return; }
     safeSessionSet(CATS_CACHE_KEY, JSON.stringify({
-        items: catsCache.items,
-        names: Array.from(catsCache.names.entries()),
+        v: CACHE_VERSION,
+        data: {
+            items: catsCache.items,
+            names: Array.from(catsCache.names.entries()),
+        },
     }));
 }
 
@@ -759,7 +811,14 @@ function loadCatsCache() {
     const raw = safeSessionGet(CATS_CACHE_KEY);
     if (!raw) return null;
     try {
-        const parsed = JSON.parse(raw);
+        const wrapped = JSON.parse(raw);
+        if (wrapped?.v !== CACHE_VERSION) {
+            // Shape de otra versión del código (deploy reciente que bumpeó
+            // CACHE_VERSION). Lo descartamos en lugar de hidratar algo inválido.
+            safeSessionRemove(CATS_CACHE_KEY);
+            return null;
+        }
+        const parsed = wrapped.data;
         if (!Array.isArray(parsed?.items)) return null;
         return {
             items: parsed.items,
@@ -793,42 +852,19 @@ function shuffleNames() {
 }
 
 function fetchCats() {
-    // Si hay cache, la PRIMERA llamada a fetchPage la sirve desde memoria.
-    // Las siguientes (Cargar más) van a la API real y crecen el cache.
-    const cached = catsCache;
-    let initialServedFromCache = false;
-    const names = cached?.names ?? new Map();
+    // names sobrevive entre visitas: el mismo cat.id conserva su nombre. Si hay
+    // cache lo arrancamos del Map persistido; si no, de uno vacío.
+    const names = catsCache?.names ?? new Map();
     // Excluimos del pool los nombres ya asignados en visitas previas para no duplicar.
     const usedNames = new Set(names.values());
     let availableNames = shuffleNames().filter(n => !usedNames.has(n));
 
-    const fetchPage = async () => {
-        if (cached && !initialServedFromCache) {
-            initialServedFromCache = true;
-            return cached.items;
-        }
-        const response = await fetchWithTimeout(
-            `https://api.thecatapi.com/v1/images/search?limit=${ITEMS_PER_PAGE}`
-        );
-        if (!response.ok) throw new Error('Error en la API de gatos');
-        const batch = await response.json();
-        catsCache = {
-            items: [...(catsCache?.items ?? []), ...batch],
-            names,
-        };
-        saveCatsCache();
-        return batch;
-    };
-
-    // Nombre asignado por catId, preservado entre visitas (mismo gato → mismo nombre).
+    // Devuelve el nombre de un catId; le asigna uno del pool si es la primera vez.
     const nextName = (catId) => {
         if (names.has(catId)) return names.get(catId);
         if (availableNames.length === 0) availableNames = shuffleNames();
         const name = availableNames.pop();
         names.set(catId, name);
-        // Save tras cada nombre nuevo. La frecuencia es ITEMS_PER_PAGE writes por
-        // batch (6), y cada serialización es ~KBs — irrelevante en perf real.
-        saveCatsCache();
         return name;
     };
 
@@ -836,15 +872,28 @@ function fetchCats() {
         routeName: ROUTE.CATS,
         section: {
             titleText: 'Gatitos Tiernos',
-            refreshId: 'refresh-cats',
             refreshText: 'Actualizar',
             loadMoreText: 'Cargar más michis'
         },
-        fetchPage,
+        getCachedItems: () => catsCache?.items ?? null,
+        skeletonCount: CATS_PAGE_SIZE,
+        fetchPage: async () => {
+            const response = await fetchWithTimeout(
+                `https://api.thecatapi.com/v1/images/search?limit=${CATS_PAGE_SIZE}`
+            );
+            if (!response.ok) throw new Error('Error en la API de gatos');
+            return response.json();
+        },
         dedupeBy: cat => cat.id,
         mapItem: cat => {
             const name = nextName(cat.id);
             return { imgSrc: cat.url, alt: `Gato ${name}`, name };
+        },
+        // Persiste el set canónico que armó loadGallery: items y names quedan
+        // con exactamente los mismos ids — sin crudos ni duplicados.
+        onBatchRendered: (items) => {
+            catsCache = { items: [...items], names };
+            saveCatsCache();
         },
         loadMoreErrorPrefix: 'Al cargar más michis: '
     });
@@ -858,14 +907,19 @@ const CARS_CACHE_KEY = 'cars:cache';
 
 function saveCarsCache() {
     if (!carsCache) { safeSessionRemove(CARS_CACHE_KEY); return; }
-    safeSessionSet(CARS_CACHE_KEY, JSON.stringify(carsCache));
+    safeSessionSet(CARS_CACHE_KEY, JSON.stringify({ v: CACHE_VERSION, data: carsCache }));
 }
 
 function loadCarsCache() {
     const raw = safeSessionGet(CARS_CACHE_KEY);
     if (!raw) return null;
     try {
-        const parsed = JSON.parse(raw);
+        const wrapped = JSON.parse(raw);
+        if (wrapped?.v !== CACHE_VERSION) {
+            safeSessionRemove(CARS_CACHE_KEY);
+            return null;
+        }
+        const parsed = wrapped.data;
         if (!Array.isArray(parsed?.items) || !Number.isInteger(parsed?.nextPage)) return null;
         return { items: parsed.items, nextPage: parsed.nextPage };
     } catch {
@@ -875,13 +929,11 @@ function loadCarsCache() {
 }
 
 function readOrCreateCarsStartPage() {
-    try {
-        const stored = sessionStorage.getItem(CARS_STARTPAGE_KEY);
-        const num = stored ? parseInt(stored, 10) : NaN;
-        if (Number.isInteger(num) && num >= 1 && num <= PAGE_RANGE) return num;
-    } catch { /* sessionStorage bloqueado (Firefox + cookies off) */ }
+    const stored = safeSessionGet(CARS_STARTPAGE_KEY);
+    const num = stored ? parseInt(stored, 10) : NaN;
+    if (Number.isInteger(num) && num >= 1 && num <= PAGE_RANGE) return num;
     const initial = Math.floor(Math.random() * PAGE_RANGE) + 1;
-    try { sessionStorage.setItem(CARS_STARTPAGE_KEY, String(initial)); } catch { /* ignore */ }
+    safeSessionSet(CARS_STARTPAGE_KEY, String(initial));
     return initial;
 }
 
@@ -889,7 +941,7 @@ function rotateCarsStartPage() {
     const prev = readOrCreateCarsStartPage();
     let next = Math.floor(Math.random() * PAGE_RANGE) + 1;
     if (next === prev && PAGE_RANGE > 1) next = (prev % PAGE_RANGE) + 1;
-    try { sessionStorage.setItem(CARS_STARTPAGE_KEY, String(next)); } catch { /* ignore */ }
+    safeSessionSet(CARS_STARTPAGE_KEY, String(next));
     return next;
 }
 
@@ -897,44 +949,35 @@ function fetchLuxuryCars() {
     // API key expuesta intencionalmente: app estática sin backend. Pixabay permite uso público desde cliente.
     const apiKey = '55650789-13538bfe7e66d705291a79be6';
 
-    // Si hay cache, la PRIMERA llamada a fetchPage la sirve desde memoria y
-    // currentPage arranca donde quedó. Las siguientes van a la API real.
-    const cached = carsCache;
-    let initialServedFromCache = false;
-    let currentPage = cached ? cached.nextPage : readOrCreateCarsStartPage();
-
-    const fetchPage = async () => {
-        if (cached && !initialServedFromCache) {
-            initialServedFromCache = true;
-            return cached.items;
-        }
-        const url = `https://pixabay.com/api/?key=${apiKey}&q=ferrari+lamborghini+supercar&image_type=photo&orientation=horizontal&per_page=${ITEMS_PER_PAGE}&page=${currentPage}&safesearch=true`;
-        const response = await fetchWithTimeout(url);
-        if (!response.ok) throw new Error('Error al conectar con la API de autos');
-        const data = await response.json();
-        const batch = data?.hits ?? [];
-        carsCache = {
-            items: [...(carsCache?.items ?? []), ...batch],
-            nextPage: currentPage + 1,
-        };
-        saveCarsCache();
-        currentPage++;
-        return batch;
-    };
+    // currentPage es la ÚNICA fuente de la posición de paginado. Si hay cache,
+    // arranca donde quedó; si no, en una página random de la sesión.
+    let currentPage = carsCache?.nextPage ?? readOrCreateCarsStartPage();
 
     return loadGallery({
         routeName: ROUTE.CARS,
         section: {
             titleText: 'Autos que queremos tener',
-            refreshId: 'refresh-cars',
             refreshText: 'Actualizar',
             loadMoreText: 'Cargar más autos'
         },
-        fetchPage,
+        getCachedItems: () => carsCache?.items ?? null,
+        fetchPage: async () => {
+            const url = `https://pixabay.com/api/?key=${apiKey}&q=ferrari+lamborghini+supercar&image_type=photo&orientation=horizontal&per_page=${ITEMS_PER_PAGE}&page=${currentPage}&safesearch=true`;
+            const response = await fetchWithTimeout(url);
+            if (!response.ok) throw new Error('Error al conectar con la API de autos');
+            const data = await response.json();
+            currentPage++;
+            return data?.hits ?? [];
+        },
         dedupeBy: car => car.id,
         mapItem: car => {
             const name = car.tags?.split(',')[0]?.trim() || 'Sin nombre';
             return { imgSrc: car.webformatURL, alt: `Auto: ${name}`, name };
+        },
+        // nextPage se deriva de currentPage al persistir — sin doble contabilidad.
+        onBatchRendered: (items) => {
+            carsCache = { items: [...items], nextPage: currentPage };
+            saveCarsCache();
         },
         loadMoreErrorPrefix: 'Al cargar más autos: '
     });
