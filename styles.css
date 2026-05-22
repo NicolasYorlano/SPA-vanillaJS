@@ -9,6 +9,7 @@
 
     /* === SURFACES === */
     --bg-color: #f8fafc;
+    --bg-gradient-end: #eef1f6; /* slate apenas más profundo: 2º stop del fondo */
     --surface: #ffffff;
     --surface-elevated: var(--surface);
     --surface-muted: #f1f5f9;
@@ -63,6 +64,7 @@
 
     /* === SURFACES === */
     --bg-color: #0f172a;
+    --bg-gradient-end: #16203a; /* navy apenas levantado: 2º stop del fondo */
     --surface: #1e293b;
     --surface-elevated: #283548;
     --surface-muted: #334155;
@@ -104,7 +106,10 @@
 
 body {
     font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+    /* Gradiente muy sutil entre la base y un slate apenas más profundo —
+       da profundidad sin distraer. background-color queda de fallback. */
     background-color: var(--bg-color);
+    background-image: linear-gradient(180deg, var(--bg-color) 0%, var(--bg-gradient-end) 100%);
     color: var(--text-main);
     line-height: 1.5;
 
