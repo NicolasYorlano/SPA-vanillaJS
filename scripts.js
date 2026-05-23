@@ -1,9 +1,10 @@
 const MAX_ITEMS = 30;
 const ITEMS_PER_PAGE = 6;
-// El Cat API, sin API key, ignora el parámetro `limit` y devuelve 10 ítems por
-// llamada. Lo declaramos explícito para que el skeleton y la URL coincidan con
-// lo que la API realmente entrega (cars sí respeta ITEMS_PER_PAGE en per_page).
-const CATS_PAGE_SIZE = 10;
+// El Cat API, sin API key, ignora `limit` y devuelve 10 por llamada. Pero al
+// usuario le mostramos ITEMS_PER_PAGE (6) por click para que cats y cars
+// tengan la misma rítmica de paginado: fetchCats bufferea los 4 sobrantes y
+// los sirve en el próximo click sin pegarle a la API.
+const CATS_API_BATCH = 10;
 const PAGE_RANGE = 10; // Rango de páginas para el random inicial en la API de autos
 const FETCH_TIMEOUT_MS = 10000;
 const BASE_TITLE = document.title;
@@ -213,6 +214,11 @@ async function reloadCurrentRoute() {
     // Si navegamos a otra ruta durante el reload, no aplicar scroll de la ruta vieja sobre la nueva.
     if (activeRoute !== routeAtStart) return;
     window.scrollTo({ top: scrollY, behavior: 'instant' });
+    // Confirmación efímera. Si la galería falló, hay un .error-msg en su
+    // lugar y el toast de "actualizada" estaría mintiendo — se salta.
+    if (!mainContainer.querySelector('.error-msg')) {
+        showToast('Galería actualizada');
+    }
 }
 
 // Compone el AbortSignal del router con uno de timeout local.
@@ -335,6 +341,16 @@ function showError(message, container = mainContainer, onRetry = null) {
     errorDiv.className = 'error-msg';
     errorDiv.setAttribute('role', 'alert');
 
+    // h1 solo en errores full-screen (con retry) para que focusMainHeading lo
+    // encuentre y el foco caiga ahí. En errores inline (load-more) no aplica:
+    // ya hay un h1 en la galería arriba y duplicarlo rompe la jerarquía.
+    if (onRetry) {
+        const heading = document.createElement('h1');
+        heading.className = 'error-title';
+        heading.textContent = 'No se pudo cargar';
+        errorDiv.appendChild(heading);
+    }
+
     const text = document.createElement('p');
     const strong = document.createElement('strong');
     strong.textContent = 'Error: ';
@@ -352,6 +368,16 @@ function showError(message, container = mainContainer, onRetry = null) {
     }
 
     container.appendChild(errorDiv);
+
+    // Anchor de foco para teclado / screen reader. Necesario tanto en el
+    // primer error (donde handleRouteChange luego haría focusMainHeading
+    // igual — idempotente) como en los retries que vuelven a fallar: ahí el
+    // botón clickeado se destruyó y nadie más mueve el foco.
+    const heading = errorDiv.querySelector('h1');
+    if (heading) {
+        heading.tabIndex = -1;
+        heading.focus();
+    }
 }
 
 // fetch() solo tira TypeError ante fallas de red; SyntaxError viene de un JSON inválido.
@@ -367,12 +393,37 @@ function logError(error) {
     console.error('[App error]', error);
 }
 
-function showEmptyState(grid, message = 'No se encontraron resultados.') {
+function showEmptyState(grid, message = 'No se encontraron resultados. Probá actualizar para buscar otros.') {
     grid.replaceChildren();
-    const empty = document.createElement('p');
+    const empty = document.createElement('div');
     empty.className = 'empty-state';
-    empty.textContent = message;
+
+    const text = document.createElement('p');
+    text.textContent = message;
+
+    const cta = document.createElement('button');
+    cta.type = 'button';
+    cta.className = 'btn-primary';
+    cta.textContent = '↻ Actualizar';
+    cta.addEventListener('click', reloadCurrentRoute);
+
+    empty.append(text, cta);
     grid.appendChild(empty);
+}
+
+// Toast efímero para confirmaciones livianas (ej. "Galería actualizada"). El
+// elemento se autoremueve después de `duration`ms, en sync con la animación
+// CSS de salida (.toast → keyframes toastIn + toastOut con delay).
+function showToast(message, duration = 1800) {
+    // Dedupe: si el usuario clickea Actualizar dos veces seguidas, no apilamos
+    // toasts. El nuevo reemplaza al viejo en su misma posición fija.
+    document.querySelector('.toast')?.remove();
+    const toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.setAttribute('role', 'status');
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), duration);
 }
 
 // === Vistas: home y galerías ===
@@ -408,8 +459,8 @@ function renderHome() {
     const ctaGrid = document.createElement('div');
     ctaGrid.className = 'home-cta-grid';
     ctaGrid.append(
-        createHomeCta(ROUTE.CATS, 'Galería de gatos', 'Imágenes aleatorias desde The Cat API con nombres asignados al azar.'),
-        createHomeCta(ROUTE.CARS, 'Galería de autos', 'Fotos de supercars desde Pixabay con paginación y búsqueda por tags.')
+        createHomeCta(ROUTE.CATS, 'Galería de gatos', 'Imágenes aleatorias de gatos desde The Cat API con nombres asignados.'),
+        createHomeCta(ROUTE.CARS, 'Galería de autos', 'Fotos de autos de lujo desde Pixabay — Ferraris, Lamborghinis y otros supercars.')
     );
     ctas.append(ctaGrid);
 
@@ -689,10 +740,22 @@ async function loadGallery({ routeName, section, getCachedItems, fetchPage, dedu
 
         const updateCounter = () => {
             counter.classList.add('is-updating');
-            counter.textContent = exhausted
-                ? `Mostrando ${totalItems} resultados`
-                : `Mostrando ${totalItems} de ${MAX_ITEMS}`;
-            requestAnimationFrame(() => counter.classList.remove('is-updating'));
+            // Tres estados del contador:
+            // - Galería completa (cap alcanzado): la API tiene más pero
+            //   nosotros frenamos en MAX_ITEMS — anunciamos completitud.
+            // - Agotada antes del cap: la API se quedó sin items.
+            // - Paginación abierta: contador clásico "X de Y".
+            if (totalItems >= MAX_ITEMS) {
+                counter.textContent = `Galería completa · ${MAX_ITEMS} resultados`;
+            } else if (exhausted) {
+                counter.textContent = `Mostrando ${totalItems} resultados`;
+            } else {
+                counter.textContent = `Mostrando ${totalItems} de ${MAX_ITEMS}`;
+            }
+            // Hold de 250ms: con requestAnimationFrame (~16ms) el blip de
+            // opacidad era imperceptible. 250ms + transition 0.2s = ~450ms
+            // total — visible sin ser molesto.
+            setTimeout(() => counter.classList.remove('is-updating'), 250);
         };
 
         const render = (items) => {
@@ -832,13 +895,15 @@ function loadCatsCache() {
     }
 }
 
+// 30 nombres = MAX_ITEMS. Si MAX_ITEMS sube, agregar nombres acá para que el
+// pool alcance — sino se cae al reshuffle de nextName y aparecen duplicados.
 const catNames = [
     "Pelusa", "Simba", "Luna", "Garfield", "Salem",
     "Michi", "Oliver", "Tom", "Milo", "Ágatha",
     "Félix", "Nala", "Figaro", "Bigotes", "Mantequilla",
     "Caspian", "Ramsés", "Copito", "Pantufla", "Doraemon", "Silvestre",
     "Mittens", "Bastian", "Lulú", "Chispita", "Romeo", "Duquesa",
-    "Gandalf", "Minerva", "Aquiles", "Pippin", "Toby"
+    "Gandalf", "Minerva", "Aquiles"
 ];
 
 // Fisher-Yates shuffle: orden aleatorio uniforme en O(n).
@@ -868,21 +933,31 @@ function fetchCats() {
         return name;
     };
 
+    // Buffer local: el Cat API devuelve CATS_API_BATCH (10) por llamada, pero
+    // al usuario le servimos ITEMS_PER_PAGE (6) por click — mismo ritmo que
+    // cars. Los 4 sobrantes esperan acá para el próximo click sin pegarle a
+    // la API. No se persiste: F5 puede gastar una llamada extra, aceptable.
+    let buffer = [];
+
     return loadGallery({
         routeName: ROUTE.CATS,
         section: {
             titleText: 'Gatitos Tiernos',
             refreshText: 'Actualizar',
-            loadMoreText: 'Cargar más michis'
+            loadMoreText: 'Cargar más'
         },
         getCachedItems: () => catsCache?.items ?? null,
-        skeletonCount: CATS_PAGE_SIZE,
+        // skeletonCount: default = ITEMS_PER_PAGE (6), mismo que cars.
         fetchPage: async () => {
-            const response = await fetchWithTimeout(
-                `https://api.thecatapi.com/v1/images/search?limit=${CATS_PAGE_SIZE}`
-            );
-            if (!response.ok) throw new Error('Error en la API de gatos');
-            return response.json();
+            if (buffer.length < ITEMS_PER_PAGE) {
+                const response = await fetchWithTimeout(
+                    `https://api.thecatapi.com/v1/images/search?limit=${CATS_API_BATCH}`
+                );
+                if (!response.ok) throw new Error('Error en la API de gatos');
+                const batch = await response.json();
+                buffer.push(...batch);
+            }
+            return buffer.splice(0, ITEMS_PER_PAGE);
         },
         dedupeBy: cat => cat.id,
         mapItem: cat => {
@@ -958,7 +1033,7 @@ function fetchLuxuryCars() {
         section: {
             titleText: 'Autos que queremos tener',
             refreshText: 'Actualizar',
-            loadMoreText: 'Cargar más autos'
+            loadMoreText: 'Cargar más'
         },
         getCachedItems: () => carsCache?.items ?? null,
         fetchPage: async () => {

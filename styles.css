@@ -161,6 +161,16 @@ body {
     to   { opacity: 0; transform: scale(0.92); }
 }
 
+@keyframes toastIn {
+    from { opacity: 0; transform: translate(-50%, 20px); }
+    to   { opacity: 1; transform: translate(-50%, 0); }
+}
+
+@keyframes toastOut {
+    from { opacity: 1; transform: translate(-50%, 0); }
+    to   { opacity: 0; transform: translate(-50%, 20px); }
+}
+
 #main > * {
     animation: fadeIn 0.18s ease-out;
 }
@@ -220,15 +230,6 @@ header p {
     display: flex;
     align-items: center;
     gap: 0.75rem;
-}
-
-.role-badge {
-    font-size: 0.85rem;
-    font-weight: 600;
-    background: var(--surface-muted);
-    padding: 0.4rem 0.8rem;
-    border-radius: 6px;
-    color: var(--text-main);
 }
 
 .brand-link {
@@ -505,6 +506,14 @@ main > div {
     margin: 0;
 }
 
+/* h1 dentro de error-msg (solo en errores full-screen con retry). Anchor para
+   focusMainHeading y para usuarios de screen reader. */
+.error-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+}
+
 .error-retry {
     margin-top: 0.75rem;
     background-color: var(--error-color);
@@ -524,11 +533,23 @@ main > div {
 
 .empty-state {
     grid-column: 1 / -1;
-    text-align: center;
+    /* Flex column para que texto y CTA se apilen centrados, ambos abrazando
+       su contenido (el botón hereda btn-primary inline-block — flex column
+       con align-items center lo centra sin estirar). */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
     color: var(--text-muted);
     padding: 2rem;
-    font-style: italic;
+    text-align: center;
     animation: fadeIn 0.18s ease-out;
+}
+
+.empty-state p {
+    font-style: italic;
+    margin: 0;
+    max-width: 32rem;
 }
 
 .not-found-message {
@@ -589,7 +610,7 @@ main > div {
 
 /* --- HOME --- */
 .highlighted-quote {
-    font-size: 2rem;
+    font-size: 1.5rem;
     margin: 1.25rem 0;
 }
 
@@ -841,6 +862,26 @@ dialog.modal-backdrop::backdrop {
     animation: skeleton-pulse 1.5s ease-in-out infinite;
 }
 
+/* --- TOAST --- */
+.toast {
+    /* Confirmación efímera. Vive en <body> (no en main) para que sobreviva
+       a cualquier mainContainer.replaceChildren() del flujo del router. */
+    position: fixed;
+    bottom: 1.5rem;
+    left: 50%;
+    transform: translate(-50%, 0);
+    background: var(--surface);
+    color: var(--text-main);
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow);
+    padding: 0.6rem 1rem;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    z-index: 200;
+    /* In + delay 1.5s + out = 1.8s total. El JS lo remueve a los 1800ms. */
+    animation: toastIn 0.3s ease-out, toastOut 0.3s ease-in 1.5s forwards;
+}
+
 /* --- HOVER STATES (solo en dispositivos con hover real) --- */
 @media (hover: hover) {
     .brand-link:hover {
@@ -975,9 +1016,20 @@ footer p {
 
     .sidebar a {
         white-space: nowrap;
-        padding: 0.5rem 1rem;
+        /* 0.75rem vertical → ~44px alto total, target táctil cómodo (WCAG 2.5.5 AAA). */
+        padding: 0.75rem 1rem;
         font-size: 0.85rem;
         background: var(--surface-muted);
+    }
+
+    /* Targets táctiles 44×44 (WCAG 2.5.5 AAA) en mobile. */
+    .theme-toggle {
+        width: 44px;
+        height: 44px;
+    }
+
+    .btn-secondary {
+        padding: 0.6rem 1rem;
     }
 
     main {
