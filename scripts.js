@@ -53,6 +53,35 @@ routes[ROUTE.CARS] = fetchLuxuryCars;
 routes[ROUTE.NOT_FOUND] = renderNotFound;
 
 
+// === Icons ===
+
+// SVG inline reutilizable. Mismo estilo Lucide del theme-toggle (24×24 viewBox,
+// stroke-width 2, currentColor) — así los íconos heredan color del contenedor
+// y matchean visualmente con el sol/luna. innerHTML acepta paths estáticos
+// definidos en el código fuente; no hay input externo, no hay riesgo XSS.
+const ICON_PATHS = Object.freeze({
+    refresh: '<path d="M3 2v6h6"/><path d="M21 12A9 9 0 0 0 6 5.3L3 8"/><path d="M21 22v-6h-6"/><path d="M3 12a9 9 0 0 0 15 6.7l3-2.7"/>',
+    'arrow-right': '<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>',
+    'arrow-left': '<path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>',
+    x: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+    'image-off': '<line x1="2" x2="22" y1="2" y2="22"/><path d="M10.41 10.41a2 2 0 1 1-2.83-2.83"/><line x1="13.5" x2="6" y1="13.5" y2="21"/><line x1="18" x2="21" y1="12" y2="15"/><path d="M3.59 3.59A1.99 1.99 0 0 0 3 5v14a2 2 0 0 0 2 2h14c.55 0 1.052-.22 1.41-.59"/><path d="M21 15V5a2 2 0 0 0-2-2H9"/>'
+});
+
+function createIcon(name, size = 16) {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('width', size);
+    svg.setAttribute('height', size);
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.setAttribute('fill', 'none');
+    svg.setAttribute('stroke', 'currentColor');
+    svg.setAttribute('stroke-width', '2');
+    svg.setAttribute('stroke-linecap', 'round');
+    svg.setAttribute('stroke-linejoin', 'round');
+    svg.setAttribute('aria-hidden', 'true');
+    svg.innerHTML = ICON_PATHS[name] ?? '';
+    return svg;
+}
+
 // === Web Storage (acceso defensivo) ===
 
 // localStorage/sessionStorage pueden tirar SecurityError en Firefox con cookies
@@ -404,7 +433,7 @@ function showEmptyState(grid, message = 'No se encontraron resultados. Probá ac
     const cta = document.createElement('button');
     cta.type = 'button';
     cta.className = 'btn-primary';
-    cta.textContent = '↻ Actualizar';
+    cta.append(createIcon('refresh'), 'Actualizar');
     cta.addEventListener('click', reloadCurrentRoute);
 
     empty.append(text, cta);
@@ -439,7 +468,11 @@ function renderHome() {
     mainContainer.replaceChildren();
 
     const title = document.createElement('h1');
-    title.className = 'content-title';
+    // --plain: sin underline. En home queremos que la quote (azul + glow)
+    // gane el énfasis por color; mantener el underline en el h1 le crea un
+    // segundo foco visual del mismo peso y queda empatado. Las otras vistas
+    // (galerías, 404) sí lo necesitan como separador del contenido de abajo.
+    title.className = 'content-title content-title--plain';
     title.textContent = 'Página de Inicio';
 
     const quote = document.createElement('h2');
@@ -481,7 +514,7 @@ function renderNotFound() {
     const homeLink = document.createElement('a');
     homeLink.href = pathFor(ROUTE.HOME);
     homeLink.className = 'btn-primary not-found-home';
-    homeLink.textContent = '← Volver al inicio';
+    homeLink.append(createIcon('arrow-left'), 'Volver al inicio');
     homeLink.addEventListener('click', (e) => {
         if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
         e.preventDefault();
@@ -499,11 +532,12 @@ function createHomeCta(routeName, titleText, descText) {
 
     const title = document.createElement('h3');
     title.className = 'home-cta-title';
-    title.append(document.createTextNode(`${titleText} `));
+    title.append(document.createTextNode(titleText));
     const arrow = document.createElement('span');
     arrow.className = 'home-cta-arrow';
-    arrow.setAttribute('aria-hidden', 'true');
-    arrow.textContent = '→';
+    // El SVG dentro ya tiene aria-hidden; el span existe solo para hookear el
+    // hover translateX y el cambio de color a primary.
+    arrow.append(createIcon('arrow-right', 20));
     title.append(arrow);
 
     const desc = document.createElement('p');
@@ -545,7 +579,7 @@ function createGallerySection({ titleText, refreshText, loadMoreText }) {
     const refreshBtn = document.createElement('button');
     refreshBtn.type = 'button';
     refreshBtn.className = 'btn-secondary';
-    refreshBtn.textContent = `↻ ${refreshText}`;
+    refreshBtn.append(createIcon('refresh'), refreshText);
     // reloadCurrentRoute reemplaza todo el contenido por el skeleton de forma
     // síncrona, así que no hace falta deshabilitar el botón ni cambiar su
     // texto: deja de existir antes de que el browser pinte un segundo click.
@@ -601,7 +635,9 @@ function createCard({ imgSrc, alt, name }) {
         imgContainer.classList.add('img-loaded');
         const placeholder = document.createElement('div');
         placeholder.className = 'img-error';
-        placeholder.textContent = 'Imagen no disponible';
+        // Ícono + label: el SVG comunica "imagen rota" antes de leer el texto,
+        // útil para usuarios que escanean rápido. flex column del CSS apila.
+        placeholder.append(createIcon('image-off', 24), 'Imagen no disponible');
         imgContainer.appendChild(placeholder);
     });
     img.src = imgSrc;
@@ -634,7 +670,7 @@ function openCardModal({ imgSrc, alt, name }) {
     closeBtn.className = 'modal-close';
     closeBtn.setAttribute('aria-label', 'Cerrar imagen');
     closeBtn.title = 'Cerrar (Esc)';
-    closeBtn.textContent = '×';
+    closeBtn.append(createIcon('x', 20));
 
     const skeleton = document.createElement('div');
     skeleton.className = 'modal-img-skeleton';
@@ -665,7 +701,7 @@ function openCardModal({ imgSrc, alt, name }) {
         img.remove();
         const placeholder = document.createElement('div');
         placeholder.className = 'modal-img-error';
-        placeholder.textContent = 'Imagen no disponible';
+        placeholder.append(createIcon('image-off', 32), 'Imagen no disponible');
         dialog.insertBefore(placeholder, title);
     });
     img.src = imgSrc;
@@ -752,10 +788,10 @@ async function loadGallery({ routeName, section, getCachedItems, fetchPage, dedu
             } else {
                 counter.textContent = `Mostrando ${totalItems} de ${MAX_ITEMS}`;
             }
-            // Hold de 250ms: con requestAnimationFrame (~16ms) el blip de
-            // opacidad era imperceptible. 250ms + transition 0.2s = ~450ms
-            // total — visible sin ser molesto.
-            setTimeout(() => counter.classList.remove('is-updating'), 250);
+            // Hold 200ms < transition 0.3s: la opacidad nunca toca fondo
+            // (0.65), apenas se asoma a ~0.78 antes de revertir. Resultado:
+            // respiración sutil, no flicker.
+            setTimeout(() => counter.classList.remove('is-updating'), 200);
         };
 
         const render = (items) => {

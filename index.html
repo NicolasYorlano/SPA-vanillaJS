@@ -10,8 +10,26 @@
     <meta name="author" content="Nicolás Yorlano">
     <meta name="theme-color" content="#2563eb">
     <link rel="canonical" href="https://catsandcars.vercel.app/">
-    <link rel="stylesheet" href="styles.css">
-    <link rel="icon" type="image/png" href="favicon.png">
+    <!-- Paths absolutos (empiezan con /) en lugar de relativos. Razón: con
+         routing SPA via History API, el browser puede estar parado en cualquier
+         ruta nested (/cars/pepe, /cats/x/y, etc). Un href relativo como
+         "styles.css" se resuelve contra esa ruta → /cars/pepe/styles.css →
+         404 del server (o el index.html falseado por el SPA fallback, que
+         rompe el MIME type del módulo JS). Absoluto = siempre desde root. -->
+    <link rel="stylesheet" href="/styles.css">
+    <link rel="icon" type="image/png" href="/public/favicon.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/public/apple-touch-icon.png">
+
+    <!-- Open Graph: tarjeta cuando alguien comparte el link en redes/chats.
+         Imagen 1200×630 con wordmark + descripción; URL absoluta porque
+         WhatsApp/Slack/Twitter resuelven og:image desde su CDN, no relativo. -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://catsandcars.vercel.app/">
+    <meta property="og:title" content="TP1 — TyGW · Cats &amp; Cars">
+    <meta property="og:description" content="Galería SPA que consume The Cat API y Pixabay. Vanilla JS con router History API, cache versionado y modal accesible.">
+    <meta property="og:image" content="https://catsandcars.vercel.app/public/og-image.png">
+    <meta property="og:locale" content="es_AR">
+    <meta name="twitter:card" content="summary_large_image">
 
     <!--
         Inline script anti-FOUC en dark mode: scripts.js es ES module (deferred) y no
@@ -102,7 +120,7 @@
         </p>
     </footer>
 
-    <script type="module" src="scripts.js"></script>
+    <script type="module" src="/scripts.js"></script>
 
 </body>
 </html>
