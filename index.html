@@ -3,6 +3,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!--
+        <base href> dinámico: hace que paths relativos como href="styles.css"
+        funcionen en cualquier contexto sin trade-offs:
+
+        — Live Server / file:// abriendo /algo/algo/index.html → base = ese
+          directorio. Los relativos resuelven contra el dir del archivo.
+        — SPA routing en producción (Vercel) sirviendo cualquier ruta nested
+          desde / → base = "/". Los relativos resuelven contra root.
+
+        document.write antes de cualquier <link>/<script> es el patrón
+        canónico para inyectar <base> dinámicamente: el parser lo inserta en
+        el stream actual y los recursos siguientes resuelven contra él.
+    -->
+    <script>
+        (function () {
+            var path = location.pathname;
+            var hasFile = /\.[a-z0-9]+$/i.test(path);
+            var base = hasFile ? path.replace(/[^/]+$/, '') : '/';
+            document.write('<base href="' + base + '">');
+        })();
+    </script>
+
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' https://*.thecatapi.com https://pixabay.com https://cdn.pixabay.com data:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://api.thecatapi.com https://pixabay.com">
 
     <title>TP1 - TyGW</title>
@@ -10,15 +33,12 @@
     <meta name="author" content="Nicolás Yorlano">
     <meta name="theme-color" content="#2563eb">
     <link rel="canonical" href="https://catsandcars-js.vercel.app/">
-    <!-- Paths absolutos (empiezan con /) en lugar de relativos. Razón: con
-         routing SPA via History API, el browser puede estar parado en cualquier
-         ruta nested (/cars/pepe, /cats/x/y, etc). Un href relativo como
-         "styles.css" se resuelve contra esa ruta → /cars/pepe/styles.css →
-         404 del server (o el index.html falseado por el SPA fallback, que
-         rompe el MIME type del módulo JS). Absoluto = siempre desde root. -->
-    <link rel="stylesheet" href="./styles.css">
-    <link rel="icon" type="image/png" href="/public/favicon.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="/public/apple-touch-icon.png">
+    <!-- Paths relativos para todos los assets locales — el <base href>
+         dinámico arriba se encarga de que resuelvan correctamente en cualquier
+         contexto (Live Server con workspace nested, Vercel SPA en root, etc). -->
+    <link rel="stylesheet" href="styles.css">
+    <link rel="icon" type="image/png" href="assets/favicon.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png">
 
     <!-- Open Graph: tarjeta cuando alguien comparte el link en redes/chats.
          Imagen 1200×630 con wordmark + descripción; URL absoluta porque
@@ -27,7 +47,7 @@
     <meta property="og:url" content="https://catsandcars-js.vercel.app/">
     <meta property="og:title" content="TP1 — TyGW · Cats &amp; Cars">
     <meta property="og:description" content="Galería SPA que consume The Cat API y Pixabay. Vanilla JS con router History API, cache versionado y modal accesible.">
-    <meta property="og:image" content="https://catsandcars-js.vercel.app/public/og-image.png">
+    <meta property="og:image" content="https://catsandcars-js.vercel.app/assets/og-image.png">
     <meta property="og:locale" content="es_AR">
     <meta name="twitter:card" content="summary_large_image">
 
@@ -120,7 +140,7 @@
         </p>
     </footer>
 
-    <script type="module" src="/scripts.js"></script>
+    <script type="module" src="scripts.js"></script>
 
 </body>
 </html>
