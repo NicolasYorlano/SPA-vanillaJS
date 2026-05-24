@@ -1,0 +1,215 @@
+import { MAX_ITEMS, ITEMS_PER_PAGE } from '../lib/config.js';
+import { createIcon } from '../lib/icons.js';
+import { mainContainer } from '../lib/dom.js';
+import { getActiveRoute, reloadCurrentRoute, runRoute } from '../lib/router.js';
+import { showSkeleton } from './skeleton.js';
+import { showError, humanizeError, logError } from './error.js';
+import { showEmptyState } from './empty.js';
+import { createCard } from './card.js';
+
+// Crea el shell de una galería: header con título + counter + botón
+// "Actualizar", grid vacío y zona de "Cargar más" + slot para errores.
+// Devuelve referencias a los nodos que loadGallery va a poblar.
+export function createGallerySection({ titleText, refreshText, loadMoreText }) {
+    mainContainer.replaceChildren();
+
+    const header = document.createElement('div');
+    header.className = 'section-header';
+
+    const titleGroup = document.createElement('div');
+    titleGroup.className = 'title-group';
+
+    const title = document.createElement('h1');
+    title.className = 'content-title';
+    title.textContent = titleText;
+
+    const counter = document.createElement('p');
+    counter.className = 'gallery-counter';
+    counter.setAttribute('aria-live', 'polite');
+
+    titleGroup.appendChild(title);
+    titleGroup.appendChild(counter);
+
+    const refreshBtn = document.createElement('button');
+    refreshBtn.type = 'button';
+    refreshBtn.className = 'btn-secondary';
+    refreshBtn.append(createIcon('refresh'), refreshText);
+    // reloadCurrentRoute reemplaza todo el contenido por el skeleton de forma
+    // síncrona, así que no hace falta deshabilitar el botón ni cambiar su
+    // texto: deja de existir antes de que el browser pinte un segundo click.
+    refreshBtn.addEventListener('click', reloadCurrentRoute);
+
+    header.appendChild(titleGroup);
+    header.appendChild(refreshBtn);
+
+    const grid = document.createElement('div');
+    grid.className = 'data-grid';
+
+    const loadMoreContainer = document.createElement('div');
+    loadMoreContainer.className = 'load-more-container';
+
+    const loadMoreError = document.createElement('div');
+    loadMoreError.className = 'load-more-error';
+
+    const loadMoreBtn = document.createElement('button');
+    loadMoreBtn.type = 'button';
+    loadMoreBtn.className = 'btn-primary';
+    loadMoreBtn.textContent = loadMoreText;
+
+    loadMoreContainer.appendChild(loadMoreError);
+    loadMoreContainer.appendChild(loadMoreBtn);
+
+    mainContainer.appendChild(header);
+    mainContainer.appendChild(grid);
+    mainContainer.appendChild(loadMoreContainer);
+
+    return { grid, loadMoreBtn, loadMoreContainer, counter, loadMoreError };
+}
+
+// Orquesta una galería: skeleton → fetch → render → paginación → manejo de errores.
+// Cada ruta inyecta su estrategia, con responsabilidades separadas:
+//   getCachedItems()       → estado restaurable (sync, lee cache) o null
+//   fetchPage()            → trae la próxima página de la API (pura, sin side-effects)
+//   onBatchRendered(items) → persiste el set canónico ya renderizado
+//   mapItem / dedupeBy     → transformación y deduplicación de cada item
+export async function loadGallery({
+    routeName,
+    section,
+    getCachedItems,
+    fetchPage,
+    dedupeBy,
+    mapItem,
+    loadMoreErrorPrefix,
+    onBatchRendered,
+    skeletonCount = ITEMS_PER_PAGE
+}) {
+    // Cache hit → restauramos sin skeleton ni fetch (es síncrono, sin flash).
+    // Cache miss → skeleton (tantos placeholders como ítems traerá el primer
+    // batch, así no hay salto de layout cuando llegan las cards).
+    const cached = getCachedItems?.() ?? null;
+    if (!cached) showSkeleton(skeletonCount);
+    try {
+        const initialItems = cached ?? await fetchPage();
+        if (getActiveRoute() !== routeName) return;
+
+        const { grid, loadMoreBtn, loadMoreContainer, counter, loadMoreError } = createGallerySection(section);
+
+        const seenIds = new Set();
+        const renderedItems = []; // set canónico (deduplicado + capeado) que se persiste
+        let totalItems = 0;
+        let exhausted = false;
+
+        const updateCounter = () => {
+            counter.classList.add('is-updating');
+            // Tres estados del contador:
+            // - Galería completa (cap alcanzado): la API tiene más pero
+            //   nosotros frenamos en MAX_ITEMS — anunciamos completitud.
+            // - Agotada antes del cap: la API se quedó sin items.
+            // - Paginación abierta: contador clásico "X de Y".
+            if (totalItems >= MAX_ITEMS) {
+                counter.textContent = `Galería completa · ${MAX_ITEMS} resultados`;
+            } else if (exhausted) {
+                counter.textContent = `Mostrando ${totalItems} resultados`;
+            } else {
+                counter.textContent = `Mostrando ${totalItems} de ${MAX_ITEMS}`;
+            }
+            // Hold 200ms < transition 0.3s: la opacidad nunca toca fondo
+            // (0.65), apenas se asoma a ~0.78 antes de revertir. Resultado:
+            // respiración sutil, no flicker.
+            setTimeout(() => counter.classList.remove('is-updating'), 200);
+        };
+
+        const render = (items) => {
+            const remaining = MAX_ITEMS - totalItems;
+            if (remaining <= 0) return 0;
+
+            const fragment = document.createDocumentFragment();
+            let added = 0;
+
+            for (const item of items) {
+                if (added >= remaining) break;
+                if (dedupeBy) {
+                    const id = dedupeBy(item);
+                    if (id == null || seenIds.has(id)) continue;
+                    seenIds.add(id);
+                }
+                renderedItems.push(item);
+                fragment.appendChild(createCard(mapItem(item)));
+                added++;
+            }
+
+            grid.appendChild(fragment);
+            totalItems += added;
+            updateCounter();
+            return added;
+        };
+
+        const showEndMessage = () => {
+            const endMsg = document.createElement('p');
+            endMsg.className = 'end-of-list';
+            endMsg.textContent = 'No hay más elementos para mostrar.';
+            loadMoreContainer.appendChild(endMsg);
+        };
+
+        const initialAdded = render(initialItems);
+        // Persistimos solo si fue un fetch fresco que trajo items. Si vino del
+        // cache (restore), reescribir storage con datos idénticos no tiene porqué.
+        if (!cached && initialAdded > 0) onBatchRendered?.(renderedItems);
+
+        if (totalItems === 0) {
+            showEmptyState(grid, { onReload: reloadCurrentRoute });
+            loadMoreBtn.classList.add('hidden');
+            counter.classList.add('hidden');
+            return;
+        }
+
+        // Cuando el cache restaura ≥ MAX_ITEMS, no necesitamos botón de "Cargar más".
+        if (totalItems >= MAX_ITEMS) {
+            loadMoreBtn.classList.add('hidden');
+            showEndMessage();
+            return;
+        }
+
+        loadMoreBtn.addEventListener('click', async () => {
+            if (totalItems >= MAX_ITEMS || exhausted) return;
+
+            loadMoreError.replaceChildren();
+            const originalText = loadMoreBtn.textContent;
+            loadMoreBtn.textContent = 'Cargando...';
+            loadMoreBtn.disabled = true;
+            try {
+                const items = await fetchPage();
+                if (getActiveRoute() !== routeName) return;
+                if (items.length === 0) {
+                    exhausted = true;
+                    updateCounter();
+                    return;
+                }
+                // Si la página trajo items pero todos eran duplicados de lo ya
+                // mostrado, render() agrega 0. La tratamos como agotada: seguir
+                // paginando difícilmente traiga algo nuevo, y evita que el
+                // usuario clickee "Cargar más" sin que el contador se mueva.
+                const added = render(items);
+                if (added === 0) exhausted = true;
+                else onBatchRendered?.(renderedItems); // persistir solo si hubo items nuevos
+            } catch (error) {
+                if (error.name === 'AbortError') return;
+                logError(error);
+                showError(loadMoreErrorPrefix + humanizeError(error), loadMoreError);
+            } finally {
+                if (totalItems >= MAX_ITEMS || exhausted) {
+                    loadMoreBtn.classList.add('hidden');
+                    showEndMessage();
+                } else {
+                    loadMoreBtn.textContent = originalText;
+                    loadMoreBtn.disabled = false;
+                }
+            }
+        });
+    } catch (error) {
+        if (error.name === 'AbortError') return;
+        if (getActiveRoute() !== routeName) return;
+        logError(error);
+        showError(humanizeError(error), mainContainer, () => runRoute(routeName));
+    }
+}

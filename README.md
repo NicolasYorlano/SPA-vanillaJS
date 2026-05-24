@@ -40,55 +40,43 @@ APP EN PRODUCCIÓN: https://catsandcars-js.vercel.app/
 
 ## Desarrollo local
 
-1. Abrir la carpeta en VS Code (o el workspace que la contenga).
-2. Clic derecho sobre `index.html` → **Open with Live Server**.
-3. La app queda corriendo en `http://127.0.0.1:5500/<ruta-a-appJS>/`.
+Requiere [Node.js](https://nodejs.org/) instalado (cualquier versión LTS reciente).
 
-El router detecta automáticamente el directorio donde está montada la app (vía `import.meta.url`), por lo que funciona indistintamente si abrís VS Code en `appJS` directamente o en una carpeta padre que la contenga.
+```bash
+npm run dev
+```
 
-> **Nota sobre la notación de rutas en este documento**: las URLs como `/cats` o `/cars` refieren a la ruta lógica del router (relativa al directorio donde vive la app). En la barra del navegador, la URL completa incluye el path donde el server esté sirviendo la app. En Vercel coinciden con la URL real; en Live Server abierto desde un workspace padre, quedan prefijadas (por ejemplo `localhost:5500/TyGW/tp1/appJS/cats`).
+Eso arranca un static server con SPA fallback en `http://localhost:3000` sirviendo desde `src/`. `npm run dev` usa `npx -y serve --single src` — no hace falta `npm install`; la primera vez baja `serve` al cache global de npm y queda disponible.
 
-### Limitación de Live Server con History API
-
-La app usa History API, lo que implica URLs como `/cats` en lugar de `#cats`. Esto requiere que el servidor haga **SPA fallback**: cualquier ruta desconocida debe responder con `index.html` para que el router del cliente pueda procesarla.
-
-**Live Server (Ritwick Dey) no implementa SPA fallback por defecto.** En la práctica esto significa:
-
-| Acción | Resultado |
-|---|---|
-| Entrar desde la raíz y navegar haciendo clic en los botones | OK |
-| Recargar (F5) estando en una ruta interna válida (`/cats`, `/cars`) | 404 del server (HTML genérico de Live Server) |
-| Pegar una URL desconocida en una pestaña nueva | 404 del server — el 404 explícito de la app **no** llega a renderizarse |
-
-Esta limitación **solo afecta al desarrollo local**. En producción (Vercel) el `vercel.json` configura SPA fallback, así que tanto las rutas válidas como las inválidas llegan al `index.html` y el router del cliente decide qué mostrar (galería o página 404 de la app).
-
-Si te molesta durante el desarrollo, dos alternativas opcionales:
-
-- **Five Server** ([extensión `yandeu.five-server`](https://marketplace.visualstudio.com/items?itemName=yandeu.five-server)) — fork moderno de Live Server con SPA fallback. Crear `.fiveserverrc` con `{ "single": true }`.
-- **`npx serve -s .`** — el flag `-s` activa modo single-page application. Requiere Node.
+> ¿Por qué no Live Server? Live Server no implementa SPA fallback, así que un F5 en `/cats` o `/cars/pepe` rompe localmente. `serve --single` replica el comportamiento de Vercel en producción.
 
 ## Deploy en producción
 
-El archivo [`vercel.json`](./vercel.json) define un rewrite catch-all que sirve `index.html` para cualquier ruta no resuelta:
+[`vercel.json`](./vercel.json) configura dos cosas:
 
 ```json
 {
+    "outputDirectory": "src",
     "rewrites": [
         { "source": "/(.*)", "destination": "/index.html" }
     ]
 }
 ```
 
-Vercel evalúa los rewrites **después** de chequear el filesystem, por lo que los assets estáticos (`styles.css`, `scripts.js`, `favicon.png`) se sirven directo sin pasar por la regla. Solo las rutas que no corresponden a archivos reales (`/cats`, `/cars`, etc.) caen en el fallback.
+- `outputDirectory: "src"` le dice a Vercel que el sitio servido es la carpeta `src/`, no el root del repo (donde viven `package.json`, `README.md`, etc).
+- `rewrites` es el catch-all que sirve `index.html` para cualquier ruta no resuelta. Vercel evalúa rewrites **después** de chequear el filesystem, así que los assets estáticos (`/styles.css`, `/scripts.js`, `/assets/*`) se sirven directo. Solo las rutas que no corresponden a archivos reales (`/cats`, `/cars/pepe`, etc.) caen en el fallback y el router del cliente decide qué renderizar.
 
 ## Estructura
 
 ```
 appJS/
-├── index.html       # Shell HTML; el contenido se inyecta dinámicamente
-├── styles.css
-├── scripts.js       # Router, fetch, render de cards, modal, dark mode
-├── favicon.png
-├── vercel.json      # SPA fallback en Vercel
-└── README.md
+├── src/                       # Todo el sitio servido
+│   ├── index.html             # Shell HTML; el contenido se inyecta dinámicamente
+│   ├── styles.css
+│   ├── scripts.js             # Router, fetch, render, modal, dark mode
+│   └── assets/                # PNGs públicos (favicon, apple-touch, og-image)
+├── package.json               # Script npm run dev (no hay deps en runtime)
+├── vercel.json                # outputDirectory + SPA fallback
+├── README.md
+└── .gitignore
 ```

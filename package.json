@@ -1,0 +1,8 @@
+{
+    "name": "TyGW-tp1-appJS",
+    "private": true,
+    "description": "SPA vanilla JS — Cats & Cars (TP1 TyGW)",
+    "scripts": {
+        "dev": "npx -y serve --single src"
+    }
+}

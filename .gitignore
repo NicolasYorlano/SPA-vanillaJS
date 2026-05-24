@@ -13,10 +13,10 @@ desktop.ini
 *.log
 npm-debug.log*
 
-# Node (por si en el futuro se agregan dependencias)
+# Node 
 node_modules/
 
-# Env
+# Env 
 .env
 .env.local
 .env.*.local
