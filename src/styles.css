@@ -99,19 +99,19 @@
     --primary-light: #3b82f6;
 
     /* === SURFACES === */
-    --bg-color: #0f172a;
-    --bg-gradient-end: #16203a; /* navy apenas levantado: 2º stop del fondo */
-    --surface: #1e293b;
-    --surface-elevated: #283548;
-    --surface-muted: #334155;
-    --surface-active: rgba(96, 165, 250, 0.15);
+    --bg-color: #0a0a0a;
+    --bg-gradient-end: #111111; /* neutro apenas levantado: 2º stop del fondo */
+    --surface: #111111;
+    --surface-elevated: #171717;
+    --surface-muted: #1f1f1f;
+    --surface-active: rgba(96, 165, 250, 0.12);
 
     /* === TEXT === */
-    --text-main: #f1f5f9;
-    --text-muted: #94a3b8;
+    --text-main: #ededed;
+    --text-muted: #a1a1a1;
 
     /* === BORDERS === */
-    --border-color: #475569;
+    --border-color: #2a2a2a;
 
     /* === ERROR === */
     --error-color: #f87171;
@@ -168,6 +168,21 @@ body {
     /* !important porque es una utility class: debe ganarle a cualquier display
        que otra clase declare en el mismo elemento (ej. .btn-primary). */
     display: none !important;
+}
+
+/* Texto solo para screen readers. Patrón estándar (Bootstrap, Tailwind):
+   visualmente oculto pero accesible para tecnologías de asistencia.
+   NO usar display:none ni visibility:hidden (los lectores los ignoran). */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
 }
 
 /* --- ANIMATIONS --- */

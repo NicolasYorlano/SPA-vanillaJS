@@ -34,6 +34,9 @@ export function initTheme() {
             const next = getCurrentTheme() === 'dark' ? 'light' : 'dark';
             safeStorageSet('theme', next);
             applyTheme(next);
+            // Anunciar SOLO en toggle del usuario (no en init ni en cambio del sistema)
+            // para que NVDA/VoiceOver confirmen la acción sin ruido al cargar la app.
+            announce(next === 'dark' ? 'Tema oscuro activado' : 'Tema claro activado');
         });
     }
 
@@ -42,4 +45,14 @@ export function initTheme() {
         if (safeStorageGet('theme')) return;
         applyTheme(e.matches ? 'dark' : 'light');
     });
+}
+
+// Update el live region #sr-announce para que screen readers lean el cambio.
+// Limpia después de 3s para que un siguiente announce del MISMO texto vuelva
+// a dispararse (live regions no re-anuncian si el textContent no cambia).
+function announce(msg) {
+    const live = document.querySelector('#sr-announce');
+    if (!live) return;
+    live.textContent = msg;
+    setTimeout(() => { if (live.textContent === msg) live.textContent = ''; }, 3000);
 }

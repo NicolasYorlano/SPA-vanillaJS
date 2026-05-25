@@ -113,10 +113,11 @@ export function fetchCats({ reload } = {}) {
     return loadGallery({
         routeName: ROUTE.CATS,
         section: {
-            titleText: 'Gatitos Tiernos',
-            refreshText: 'Actualizar',
-            loadMoreText: 'Cargar más'
+            titleText: 'Gatos Tiernos',
+            refreshText: 'Ver otros gatos',
+            loadMoreText: 'Cargar más gatos'
         },
+        itemNoun: 'gatos',
         getCachedItems: () => catsCache?.items ?? null,
         // skeletonCount: default = ITEMS_PER_PAGE (6), mismo que cars.
         fetchPage: async () => {

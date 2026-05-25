@@ -19,7 +19,7 @@ export function renderHome() {
     // segundo foco visual del mismo peso y queda empatado. Las otras vistas
     // (galerías, 404) sí lo necesitan como separador del contenido de abajo.
     title.className = 'content-title content-title--plain';
-    title.textContent = 'Página de Inicio';
+    title.textContent = 'Cats & Cars';
 
     const quote = document.createElement('h2');
     quote.className = `${selected.className} highlighted-quote`;

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' https://*.thecatapi.com https://pixabay.com https://cdn.pixabay.com data:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://api.thecatapi.com https://pixabay.com">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' https: data:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://api.thecatapi.com https://pixabay.com">
 
     <title>TP1 - TyGW</title>
     <meta name="description" content="Galería de imágenes que consume APIs públicas (The Cat API y Pixabay). SPA construida con HTML, CSS y JavaScript vanilla.">
@@ -98,11 +98,10 @@
     </header>
 
     <nav class="sidebar" aria-label="Navegación principal">
-        <h2 class="sidebar-heading">Exploración de Datos</h2>
         <a href="/" data-route="home">Inicio</a>
-        <h3 class="sidebar-section-label">APIs Públicas</h3>
-        <a href="/cats" data-route="cats">Gatitos tiernos</a>
-        <a href="/cars" data-route="cars">Autos que no nos alcanza para tener</a>
+        <h3 class="sidebar-section-label">Galerías</h3>
+        <a href="/cats" data-route="cats">Gatos tiernos</a>
+        <a href="/cars" data-route="cars">Autos que queremos tener</a>
     </nav>
 
     <main>
@@ -116,6 +115,8 @@
             Tecnología y Gestión Web — Nicolás Yorlano &copy; <span data-year></span>
         </p>
     </footer>
+
+    <div id="sr-announce" class="sr-only" aria-live="polite" aria-atomic="true"></div>
 
     <script type="module" src="/main.js"></script>
 

@@ -7,6 +7,17 @@ import { loadGallery } from '../ui/gallery.js';
 // Rango de páginas para el random inicial en la API de autos.
 const PAGE_RANGE = 10;
 
+// Whitelist de marcas/modelos para extraer el nombre del auto.
+// Pixabay devuelve tags ordenados por relevancia, pero el primero suele ser
+// genérico ("alloy wheel", "tire", "engine"). Buscamos el primer tag que
+// matchee una marca conocida; si ninguno matchea, fallback al primer tag.
+const CAR_BRANDS = [
+    'ferrari', 'lamborghini', 'porsche', 'bugatti', 'mclaren',
+    'koenigsegg', 'pagani', 'aston martin', 'maserati', 'bentley',
+    'rolls royce', 'audi', 'bmw', 'mercedes', 'jaguar', 'corvette',
+    'mustang', 'nissan gt-r', 'gtr', 'supra'
+];
+
 const CARS_STARTPAGE_KEY = 'cars-startPage';
 const CARS_CACHE_KEY = 'cars:cache';
 
@@ -78,9 +89,10 @@ export function fetchLuxuryCars({ reload } = {}) {
         routeName: ROUTE.CARS,
         section: {
             titleText: 'Autos que queremos tener',
-            refreshText: 'Actualizar',
-            loadMoreText: 'Cargar más'
+            refreshText: 'Ver otros autos',
+            loadMoreText: 'Cargar más autos'
         },
+        itemNoun: 'autos',
         getCachedItems: () => carsCache?.items ?? null,
         fetchPage: async () => {
             const url = `https://pixabay.com/api/?key=${apiKey}&q=ferrari+lamborghini+supercar&image_type=photo&orientation=horizontal&per_page=${ITEMS_PER_PAGE}&page=${currentPage}&safesearch=true`;
@@ -92,7 +104,8 @@ export function fetchLuxuryCars({ reload } = {}) {
         },
         dedupeBy: car => car.id,
         mapItem: car => {
-            const name = car.tags?.split(',')[0]?.trim() || 'Sin nombre';
+            const tags = (car.tags || '').toLowerCase().split(',').map(t => t.trim()).filter(Boolean);
+            const name = tags.find(t => CAR_BRANDS.some(b => t.includes(b))) || tags[0] || 'Auto deportivo';
             return { imgSrc: car.webformatURL, alt: `Auto: ${name}`, name };
         },
         // nextPage se deriva de currentPage al persistir — sin doble contabilidad.

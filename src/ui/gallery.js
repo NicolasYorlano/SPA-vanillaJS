@@ -81,7 +81,8 @@ export async function loadGallery({
     mapItem,
     loadMoreErrorPrefix,
     onBatchRendered,
-    skeletonCount = ITEMS_PER_PAGE
+    skeletonCount = ITEMS_PER_PAGE,
+    itemNoun = 'resultados'
 }) {
     // Cache hit → restauramos sin skeleton ni fetch (es síncrono, sin flash).
     // Cache miss → skeleton (tantos placeholders como ítems traerá el primer
@@ -107,11 +108,11 @@ export async function loadGallery({
             // - Agotada antes del cap: la API se quedó sin items.
             // - Paginación abierta: contador clásico "X de Y".
             if (totalItems >= MAX_ITEMS) {
-                counter.textContent = `Galería completa · ${MAX_ITEMS} resultados`;
+                counter.textContent = `Galería completa · ${MAX_ITEMS} ${itemNoun}`;
             } else if (exhausted) {
-                counter.textContent = `Mostrando ${totalItems} resultados`;
+                counter.textContent = `Mostrando ${totalItems} ${itemNoun}`;
             } else {
-                counter.textContent = `Mostrando ${totalItems} de ${MAX_ITEMS}`;
+                counter.textContent = `Mostrando ${totalItems} de ${MAX_ITEMS} ${itemNoun}`;
             }
             // Hold 200ms < transition 0.3s: la opacidad nunca toca fondo
             // (0.65), apenas se asoma a ~0.78 antes de revertir. Resultado:
