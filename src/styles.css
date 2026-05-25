@@ -616,18 +616,79 @@ main > div {
     max-width: 32rem;
 }
 
-.not-found-message {
-    color: var(--text-muted);
-    font-size: var(--text-base);
-    line-height: 1.6;
-    max-width: 32rem;
+/* === 404 — Página no encontrada ===
+   Layout editorial estilo Vercel: "404" a la izquierda como acento numérico,
+   divisor vertical, contenido alineado a la derecha. Tipografía sólida sin
+   gradient ni glow — la jerarquía la fija la composición y los pesos. */
+
+.not-found {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: var(--space-6);
+    min-height: 50vh;
+    padding: var(--space-5) 0;
 }
 
-/* #main es flex column → sus hijos directos se estiran. El botón debe abrazar
-   su contenido, no ocupar el ancho completo. En mobile la media query le da
-   width:100% y vuelve a ser full-width (intencional ahí). */
-.not-found-home {
-    align-self: flex-start;
+.not-found-code {
+    /* Tamaño mediano fluido (~56→104px) — acento numérico, no protagonista.
+       Color sólido text-main, tracking ajustado para densidad tipográfica.
+       padding-right + border-right arman el divisor vertical clásico. */
+    font-size: clamp(3.5rem, 6vw + 1rem, 6.5rem);
+    font-weight: var(--weight-bold);
+    line-height: 1;
+    letter-spacing: -0.04em;
+    color: var(--text-main);
+    margin: 0;
+    padding-right: var(--space-6);
+    border-right: 1px solid var(--border-color);
+    font-variant-numeric: tabular-nums;
+}
+
+.not-found-body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    max-width: 32rem;
+    align-items: flex-start;
+}
+
+.not-found-title {
+    /* h1 con peso bold y tracking apretado — editorial, no marketing. */
+    font-size: clamp(1.5rem, 1.5vw + 1rem, 2rem);
+    font-weight: var(--weight-bold);
+    color: var(--text-main);
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+    margin: 0;
+}
+
+.not-found-text {
+    font-size: var(--text-base);
+    color: var(--text-muted);
+    line-height: var(--leading-normal);
+    margin: 0;
+}
+
+.not-found-cta {
+    margin-top: var(--space-2);
+}
+
+/* Mobile: stack vertical, divisor pasa a horizontal abajo del 404. */
+@media (max-width: 30em) {
+    .not-found {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--space-4);
+        min-height: auto;
+    }
+    .not-found-code {
+        padding-right: 0;
+        padding-bottom: var(--space-4);
+        border-right: none;
+        border-bottom: 1px solid var(--border-color);
+        align-self: stretch;
+    }
 }
 
 /* --- BUTTONS --- */
@@ -662,7 +723,9 @@ main > div {
 
 .btn-secondary {
     /* inline-flex igual que btn-primary para que "↻ Actualizar" alinee el SVG
-       con el texto. */
+       con el texto. text-decoration:none porque .btn-secondary también se
+       aplica a <a> (ej. CTA secundaria del 404), y el browser le pondría
+       underline por default. */
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -675,6 +738,7 @@ main > div {
     cursor: pointer;
     font-weight: var(--weight-semibold);
     font-size: var(--text-sm);
+    text-decoration: none;
     transition: var(--transition);
     white-space: nowrap;
 }

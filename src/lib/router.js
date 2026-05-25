@@ -17,7 +17,7 @@ const ROUTE_TITLES = {
     [ROUTE.HOME]: 'Inicio',
     [ROUTE.CATS]: 'Gatitos',
     [ROUTE.CARS]: 'Autos',
-    [ROUTE.NOT_FOUND]: 'Página no encontrada'
+    [ROUTE.NOT_FOUND]: '404'
 };
 
 const baseTitle = document.title;

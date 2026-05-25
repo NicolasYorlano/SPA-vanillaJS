@@ -5,25 +5,33 @@ import { createIcon } from '../lib/icons.js';
 export function renderNotFound() {
     mainContainer.replaceChildren();
 
-    // Código grande arriba del h1 — convención SPA (GitHub, Linear, Vercel).
-    // aria-hidden porque el h1 "Página no encontrada" ya comunica el estado
-    // al screen reader; leer "cuatrocientos cuatro" es ruido redundante.
+    // Layout editorial estilo Vercel: "404" a la izquierda, separador
+    // vertical, contenido a la derecha. Jerarquía por composición y
+    // tipografía sólida — sin gradient ni efectos visuales.
+    const wrap = document.createElement('section');
+    wrap.className = 'not-found';
+
+    // "404" como acento numérico, no como hero. aria-hidden porque el h1
+    // abajo comunica el estado al screen reader.
     const code = document.createElement('p');
     code.className = 'not-found-code';
     code.textContent = '404';
     code.setAttribute('aria-hidden', 'true');
 
-    const title = document.createElement('h1');
-    title.className = 'content-title';
-    title.textContent = 'Página no encontrada';
+    const body = document.createElement('div');
+    body.className = 'not-found-body';
 
-    const message = document.createElement('p');
-    message.className = 'not-found-message';
-    message.textContent = 'La página que buscás no existe o fue movida.';
+    const title = document.createElement('h1');
+    title.className = 'not-found-title';
+    title.textContent = 'Esta página no existe.';
+
+    const text = document.createElement('p');
+    text.className = 'not-found-text';
+    text.textContent = 'Revisá la URL o volvé al inicio.';
 
     const homeLink = document.createElement('a');
     homeLink.href = pathFor(ROUTE.HOME);
-    homeLink.className = 'btn-primary not-found-home';
+    homeLink.className = 'btn-primary not-found-cta';
     homeLink.append(createIcon('arrow-left'), 'Volver al inicio');
     homeLink.addEventListener('click', (e) => {
         if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
@@ -31,5 +39,7 @@ export function renderNotFound() {
         navigate(ROUTE.HOME);
     });
 
-    mainContainer.append(title, message, homeLink);
+    body.append(title, text, homeLink);
+    wrap.append(code, body);
+    mainContainer.append(wrap);
 }
