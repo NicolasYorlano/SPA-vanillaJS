@@ -1,4 +1,4 @@
-import { createIcon } from '../lib/icons.js';
+import { createIcon, ICON_SIZE } from '../lib/icons.js';
 
 // Modal de detalle de imagen. Usa <dialog> nativo: focus trap, Escape para
 // cerrar, click en backdrop para cerrar. Animaciones de entrada/salida via CSS.
@@ -20,7 +20,7 @@ export function openCardModal({ imgSrc, alt, name }) {
     closeBtn.className = 'modal-close';
     closeBtn.setAttribute('aria-label', 'Cerrar imagen');
     closeBtn.title = 'Cerrar (Esc)';
-    closeBtn.append(createIcon('x', 20));
+    closeBtn.append(createIcon('x', ICON_SIZE.md));
 
     const skeleton = document.createElement('div');
     skeleton.className = 'modal-img-skeleton';
@@ -51,7 +51,7 @@ export function openCardModal({ imgSrc, alt, name }) {
         img.remove();
         const placeholder = document.createElement('div');
         placeholder.className = 'modal-img-error';
-        placeholder.append(createIcon('image-off', 32), 'Imagen no disponible');
+        placeholder.append(createIcon('image-off', ICON_SIZE.xl), 'Imagen no disponible');
         dialog.insertBefore(placeholder, title);
     });
     img.src = imgSrc;

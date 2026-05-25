@@ -5,7 +5,7 @@
     /* === BRAND === */
     --primary-color: #2563eb;
     --primary-hover: #1d4ed8;
-    --primary-light: #3b82f6;
+    --primary-accent: #3b82f6;   /* shade alterno para tercera quote del home */
 
     /* === SURFACES === */
     --bg-color: #f8fafc;
@@ -38,17 +38,31 @@
     --modal-close-hover-bg: rgba(0, 0, 0, 0.85);
 
     /* === SHADOWS === */
-    --shadow-color: rgb(0 0 0 / 0.1);
+    --shadow-color: rgba(0, 0, 0, 0.1);
     --shadow-color-strong: rgba(0, 0, 0, 0.4);
-    --shadow: 0 1px 3px 0 var(--shadow-color), 0 1px 2px -1px var(--shadow-color);
+    /* Escala de 3 niveles: sm (defaults — header, main, toast),
+       md (card hover), lg (modal dialog). */
+    --shadow-sm: 0 1px 3px 0 var(--shadow-color), 0 1px 2px -1px var(--shadow-color);
+    --shadow-md: 0 10px 15px -3px var(--shadow-color);
+    --shadow-lg: 0 25px 50px -12px var(--shadow-color-strong);
 
     /* === LAYOUT === */
     --header-height: 70px;
-    --sidebar-width: 260px;
+    /* clamp 200→260 entre tablet landscape y desktop: transición continua
+       sin saltos por breakpoint. */
+    --sidebar-width: clamp(200px, 18vw, 260px);
 
-    /* === EFFECTS === */
+    /* === TRANSITIONS === */
+    /* Combinado: para componentes que animan varias propiedades a la vez
+       (bg, color, transform, shadow, border). */
     --transition: background-color 0.3s ease, color 0.3s ease, transform 0.1s ease, box-shadow 0.3s ease, border-color 0.2s ease;
+    /* Por duración: para transiciones simples de una sola propiedad. */
+    --transition-base: 0.2s ease;
+    --transition-slow: 0.3s ease;
+
+    /* === SKELETON === */
     --skeleton-bg: linear-gradient(90deg, var(--surface-muted) 0%, var(--border-color) 50%, var(--surface-muted) 100%);
+    --anim-skeleton: 1.5s;   /* loop del skeleton-pulse (card, modal-img, skeleton-card) */
 
     /* === TYPOGRAPHY === */
     /* Escala modular 7 pasos (no se overridea en dark — la tipografía no cambia con el tema). */
@@ -60,9 +74,14 @@
     --text-xl:   1.5rem;     /* 24px - h1, content-title (cap), highlighted-quote (cap) */
     --text-2xl:  2rem;       /* 32px - hero reserva */
 
+    --leading-none:  1;      /* acentos numéricos sin descender (ej. 404 code) */
     --leading-tight: 1.2;
     --leading-normal: 1.5;
     --leading-loose: 1.7;
+
+    --tracking-tighter: -0.04em;   /* hero numérico — densidad máxima */
+    --tracking-tight:   -0.02em;   /* títulos grandes — compresión sobria */
+    --tracking-wide:     0.05em;   /* labels uppercase — apertura para legibilidad */
 
     --weight-regular:   400;
     --weight-medium:    500;
@@ -85,6 +104,24 @@
 
     /* === BORDERS === */
     --border-width-strong: 2px;   /* underline title, focus outlines */
+
+    /* === ICONS === */
+    /* Escala de íconos. Mismos valores se exponen en JS via ICON_SIZE en
+       lib/icons.js — espejo manual porque createIcon recibe el size como
+       atributo width/height del <svg>, no como CSS. */
+    --icon-sm: 16px;
+    --icon-md: 20px;
+    --icon-lg: 24px;
+    --icon-xl: 32px;
+
+    /* === Z-INDEX (registro centralizado para evitar conflictos) === */
+    --z-sidebar-mobile: 90;    /* sidebar sticky mobile — debe quedar bajo header */
+    --z-header: 100;           /* header sticky */
+    --z-toast: 200;            /* toasts efímeros */
+    --z-modal-backdrop: 1000;  /* modal backdrop */
+
+    /* === PROSE === */
+    --prose-max-width: 32rem;  /* line length ~60-75ch para párrafos legibles */
 }
 
 /* --- DARK THEME --- */
@@ -96,7 +133,7 @@
        Si cambia acá, actualizar ahí también. */
     --primary-color: #60a5fa;
     --primary-hover: #93c5fd;
-    --primary-light: #3b82f6;
+    --primary-accent: #3b82f6;
 
     /* === SURFACES === */
     --bg-color: #0a0a0a;
@@ -226,6 +263,10 @@ body {
     to   { opacity: 0; transform: translateY(20px); }
 }
 
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
 #main > * {
     animation: fadeIn 0.18s ease-out;
 }
@@ -257,15 +298,21 @@ header {
     padding: 0 var(--space-6);
     position: sticky;
     top: 0;
-    z-index: 100;
-    box-shadow: var(--shadow);
+    z-index: var(--z-header);
+    box-shadow: var(--shadow-sm);
+}
+
+.brand-link {
+    text-decoration: none;
+    color: inherit;
+    display: inline-block;
+    transition: opacity var(--transition-base);
 }
 
 .brand-link span {
     font-weight: var(--weight-bold);
-    /* -0.3px porque el weight bajó de 800 → 700; con menos peso el tracking negativo
-       comprime visualmente menos, así la tipografía respira sin perder identidad. */
-    letter-spacing: -0.3px;
+    /* tracking-tight (-0.02em) compensa el peso bold sin sobrecomprimir. */
+    letter-spacing: var(--tracking-tight);
     color: var(--primary-color);
     font-size: var(--text-lg);
 }
@@ -289,13 +336,6 @@ header p {
     gap: var(--space-3);
 }
 
-.brand-link {
-    text-decoration: none;
-    color: inherit;
-    display: inline-block;
-    transition: opacity 0.2s ease;
-}
-
 /* --- THEME TOGGLE --- */
 .theme-toggle {
     background: transparent;
@@ -314,8 +354,8 @@ header p {
 }
 
 .theme-toggle-icon {
-    width: 20px;
-    height: 20px;
+    width: var(--icon-md);
+    height: var(--icon-md);
 }
 
 .icon-sun { display: none; }
@@ -356,7 +396,7 @@ header p {
     font-weight: var(--weight-bold);
     color: var(--text-muted);
     margin-bottom: var(--space-4);
-    letter-spacing: 0.05em;
+    letter-spacing: var(--tracking-wide);
 }
 
 .sidebar-section-label {
@@ -404,7 +444,7 @@ main > div {
     border-radius: var(--radius-lg);
     min-height: 400px;
     border: 1px solid var(--border-color);
-    box-shadow: var(--shadow);
+    box-shadow: var(--shadow-sm);
     padding: var(--space-6);
     display: flex;
     flex-direction: column;
@@ -414,23 +454,15 @@ main > div {
 /* --- CONTENIDO INYECTADO --- */
 .content-title {
     /* Fluid typography: escala continua entre min (mobile) y max (desktop)
-       sin necesidad de overrides por breakpoint. La pendiente cubre los
-       valores que antes vivían en @media 48em (1.2rem) y 30em (1.1rem). */
+       sin necesidad de overrides por breakpoint. */
     font-size: clamp(1.1rem, 1vw + 0.9rem, 1.5rem);
     font-weight: var(--weight-bold);
     color: var(--text-main);
-    border-bottom: var(--border-width-strong) solid var(--primary-color);
+    /* Underline en --border-color: marca el límite con el contenido de abajo
+       sin competir con el primary que reservamos para acción/navegación activa. */
+    border-bottom: var(--border-width-strong) solid var(--border-color);
     padding-bottom: var(--space-2);
     width: fit-content;
-}
-
-/* Modifier sin underline — usado en home para que el h1 no compita por
-   énfasis con la quote (que gana por color brand). En vistas con grilla
-   debajo (galerías, 404), el underline marca el límite entre header y
-   contenido y sí queremos que se vea. */
-.content-title--plain {
-    border-bottom: none;
-    padding-bottom: 0;
 }
 
 .section-header {
@@ -470,7 +502,7 @@ main > div {
 .card {
     border: 1px solid var(--border-color);
     border-radius: var(--radius-lg);
-    /* V8 — padding intra-card más chico que el gap inter-card (1rem vs 1.5rem)
+    /* Padding intra-card más chico que el gap inter-card (1rem vs 1.5rem)
        para que Gestalt-proximidad separe claramente cada card del vecino. */
     padding: var(--space-4);
     background: var(--surface-elevated);
@@ -490,6 +522,18 @@ main > div {
     transform: scale(0.98);
 }
 
+/* Patrón compartido del shimmer — usado por placeholders de imagen
+   (img-container, skeleton-img, modal-img-skeleton) y label (skeleton-name).
+   Tocando un solo lugar se cambia el ritmo del pulse en toda la app. */
+.img-container,
+.skeleton-img,
+.skeleton-name,
+.modal-img-skeleton {
+    background: var(--skeleton-bg);
+    background-size: 200% 100%;
+    animation: skeleton-pulse var(--anim-skeleton) ease-in-out infinite;
+}
+
 .img-container {
     position: relative;
     width: 100%;
@@ -497,9 +541,6 @@ main > div {
     border-radius: var(--radius-md);
     overflow: hidden;
     margin-bottom: var(--space-3);
-    background: var(--skeleton-bg);
-    background-size: 200% 100%;
-    animation: skeleton-pulse 1.5s ease-in-out infinite;
 }
 
 .img-container.img-loaded {
@@ -512,7 +553,7 @@ main > div {
     height: 100%;
     object-fit: cover;
     opacity: 0;
-    transition: opacity 0.3s ease;
+    transition: opacity var(--transition-slow);
 }
 
 .img-container img.card-img-loaded {
@@ -555,9 +596,6 @@ main > div {
     height: 200px;
     border-radius: var(--radius-md);
     margin-bottom: var(--space-3);
-    background: var(--skeleton-bg);
-    background-size: 200% 100%;
-    animation: skeleton-pulse 1.5s ease-in-out infinite;
 }
 
 .skeleton-name {
@@ -567,9 +605,6 @@ main > div {
     height: 1.5rem;
     margin-top: var(--space-3);
     border-radius: var(--radius-sm);
-    background: var(--skeleton-bg);
-    background-size: 200% 100%;
-    animation: skeleton-pulse 1.5s ease-in-out infinite;
 }
 
 /* --- ERROR & EMPTY --- */
@@ -620,7 +655,12 @@ main > div {
     align-items: center;
     gap: var(--space-4);
     color: var(--text-muted);
+    /* Fondo + border-radius para que el componente se lea como "panel
+       informativo" igual que .error-msg — coherencia entre los dos estados
+       de no-contenido. */
+    background: var(--surface-muted);
     padding: var(--space-6);
+    border-radius: var(--radius-md);
     text-align: center;
     animation: fadeIn 0.18s ease-out;
 }
@@ -628,7 +668,7 @@ main > div {
 .empty-state p {
     font-style: italic;
     margin: 0;
-    max-width: 32rem;
+    max-width: var(--prose-max-width);
 }
 
 /* === 404 — Página no encontrada ===
@@ -651,8 +691,8 @@ main > div {
        padding-right + border-right arman el divisor vertical clásico. */
     font-size: clamp(3.5rem, 6vw + 1rem, 6.5rem);
     font-weight: var(--weight-bold);
-    line-height: 1;
-    letter-spacing: -0.04em;
+    line-height: var(--leading-none);
+    letter-spacing: var(--tracking-tighter);
     color: var(--text-main);
     margin: 0;
     padding-right: var(--space-6);
@@ -664,7 +704,7 @@ main > div {
     display: flex;
     flex-direction: column;
     gap: var(--space-3);
-    max-width: 32rem;
+    max-width: var(--prose-max-width);
     align-items: flex-start;
 }
 
@@ -673,8 +713,8 @@ main > div {
     font-size: clamp(1.5rem, 1.5vw + 1rem, 2rem);
     font-weight: var(--weight-bold);
     color: var(--text-main);
-    line-height: 1.2;
-    letter-spacing: -0.02em;
+    line-height: var(--leading-tight);
+    letter-spacing: var(--tracking-tight);
     margin: 0;
 }
 
@@ -707,23 +747,32 @@ main > div {
 }
 
 /* --- BUTTONS --- */
-.btn-primary {
-    /* inline-flex para alinear ícono SVG + label en la misma línea base.
-       justify-content center importa cuando en mobile pasa a width:100%. */
+/* Shared base de las variantes. inline-flex para alinear ícono SVG + label;
+   justify-content center importa cuando en mobile pasa a width:100%.
+   line-height explícito porque sin esto el componente como <a> hereda
+   --leading-normal (1.5) y como <button> usa "normal" (~1.2), dando 5px
+   de diferencia visual entre el CTA del 404 y los botones de galería.
+   text-decoration none cubre el caso <a class="btn-*">. */
+.btn-primary,
+.btn-secondary {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: var(--space-2);
-    background-color: var(--primary-color);
-    color: var(--surface);
-    border: none;
-    padding: var(--space-3) var(--space-5);
     border-radius: var(--radius-md);
     cursor: pointer;
     font-weight: var(--weight-semibold);
     font-size: var(--text-sm);
+    line-height: var(--leading-tight);
     text-decoration: none;
     transition: var(--transition);
+}
+
+.btn-primary {
+    background-color: var(--primary-color);
+    color: var(--surface);
+    border: none;
+    padding: var(--space-3) var(--space-5);
 }
 
 .btn-primary:active {
@@ -736,25 +785,29 @@ main > div {
     transform: none;
 }
 
+/* Loading: distinto de disabled — sí está pasando algo. Mantenemos
+   opacity 1, bloqueamos pointer-events, agregamos spinner. */
+.btn-primary.is-loading {
+    pointer-events: none;
+    cursor: wait;
+    opacity: 1;
+}
+
+.btn-primary.is-loading::before {
+    content: '';
+    width: 14px;
+    height: 14px;
+    border: 2px solid currentColor;
+    border-right-color: transparent;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+}
+
 .btn-secondary {
-    /* inline-flex igual que btn-primary para que "↻ Actualizar" alinee el SVG
-       con el texto. text-decoration:none porque .btn-secondary también se
-       aplica a <a> (ej. CTA secundaria del 404), y el browser le pondría
-       underline por default. */
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: var(--space-2);
     background: transparent;
     color: var(--primary-color);
-    border: 1.5px solid var(--primary-color);
+    border: var(--border-width-strong) solid var(--primary-color);
     padding: var(--space-2) var(--space-4);
-    border-radius: var(--radius-md);
-    cursor: pointer;
-    font-weight: var(--weight-semibold);
-    font-size: var(--text-sm);
-    text-decoration: none;
-    transition: var(--transition);
     white-space: nowrap;
 }
 
@@ -764,8 +817,7 @@ main > div {
 
 /* --- HOME --- */
 .highlighted-quote {
-    /* Misma estrategia clamp que .content-title — reemplaza los overrides
-       que tenía en @media 48em (1.4rem) y 30em (1.15rem). */
+    /* Misma estrategia clamp que .content-title — fluid sin overrides por breakpoint. */
     font-size: clamp(1.15rem, 0.8vw + 0.95rem, 1.5rem);
     margin: var(--space-5) 0;
 }
@@ -781,19 +833,22 @@ main > div {
 }
 
 .shadow-3 {
-    color: var(--primary-light);
+    color: var(--primary-accent);
     text-shadow: 2px 2px 8px var(--quote-glow-3);
 }
 
 .expectations-paragraph {
     background: var(--bg-color);
-    border-left: 4px solid var(--primary-color);
+    /* border-left a --border-color (era --primary-color): el bloque sigue
+       leyéndose como callout por la barra lateral y el bg distinto, sin
+       gastar el azul de marca en decoración. */
+    border-left: 4px solid var(--border-color);
     padding: var(--space-4) var(--space-5);
     border-radius: 0 var(--radius-md) var(--radius-md) 0;
 }
 
 .expectations-paragraph h3 {
-    color: var(--primary-color);
+    color: var(--text-main);
     margin-bottom: var(--space-2);
     font-size: var(--text-md);
 }
@@ -825,23 +880,9 @@ main > div {
     transition: var(--transition);
 }
 
-.home-cta::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 0;
-    bottom: 0;
-    width: 3px;
-    background: var(--primary-color);
-    transform: scaleY(0);
-    transform-origin: top;
-    transition: transform 0.2s ease;
-}
-
-.home-cta:hover::before,
-.home-cta:focus-visible::before {
-    transform: scaleY(1);
-}
+/* El indicador de hover/focus del CTA viene del border-color del card y del
+   color/translateX de .home-cta-arrow. Se eliminó la línea vertical accent
+   primary que duplicaba esa señal. */
 
 .home-cta:active {
     transform: scale(0.98);
@@ -862,7 +903,7 @@ main > div {
     /* Tamaño y peso lo controla el <svg> (width/height + stroke-width).
        Acá solo color (heredado por currentColor) y la transición de hover. */
     color: var(--text-muted);
-    transition: transform 0.2s ease, color 0.2s ease;
+    transition: transform var(--transition-base), color var(--transition-base);
 }
 
 .home-cta:hover .home-cta-arrow {
@@ -911,12 +952,14 @@ main > div {
     position: fixed;
     inset: 0;
     background: var(--modal-backdrop);
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
+    /* blur(6px) unificado con .modal-close — ambos refuerzan la separación
+       visual del modal respecto al contenido de fondo. */
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 1000;
+    z-index: var(--z-modal-backdrop);
     padding: var(--space-6);
     animation: modalFadeIn 0.2s ease-out;
 }
@@ -947,7 +990,7 @@ dialog.modal-backdrop::backdrop {
     padding: var(--space-4);
     max-width: min(90vw, 800px);
     max-height: 90vh;
-    box-shadow: 0 25px 50px -12px var(--shadow-color-strong);
+    box-shadow: var(--shadow-lg);
     display: flex;
     flex-direction: column;
     gap: var(--space-3);
@@ -960,8 +1003,10 @@ dialog.modal-backdrop::backdrop {
 
 .modal-close {
     position: absolute;
-    top: var(--space-2);
-    right: var(--space-2);
+    /* space-3 (12px) — el space-2 quedaba apretado contra el borde del
+       dialog, sobre todo cuando coincidía con una imagen clara debajo. */
+    top: var(--space-3);
+    right: var(--space-3);
     background: var(--modal-close-bg);
     /* X blanca + bg negro semi-transparente → contraste alto sobre cualquier
        imagen detrás (clara, oscura, ruidosa). Sin esto, en dark mode con bg
@@ -976,12 +1021,12 @@ dialog.modal-backdrop::backdrop {
     width: 36px;
     height: 36px;
     border-radius: 50%;
-    line-height: 1;
+    line-height: var(--leading-none);
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: background 0.2s ease;
+    transition: background-color var(--transition-base);
     z-index: 1;
 }
 
@@ -1021,9 +1066,6 @@ dialog.modal-backdrop::backdrop {
     width: 100%;
     min-height: 300px;
     border-radius: var(--radius-md);
-    background: var(--skeleton-bg);
-    background-size: 200% 100%;
-    animation: skeleton-pulse 1.5s ease-in-out infinite;
 }
 
 /* --- TOAST --- */
@@ -1039,11 +1081,11 @@ dialog.modal-backdrop::backdrop {
     background: var(--surface);
     color: var(--text-main);
     border: 1px solid var(--border-color);
-    box-shadow: var(--shadow);
+    box-shadow: var(--shadow-sm);
     padding: var(--space-3) var(--space-4);
     border-radius: var(--radius-md);
     font-size: var(--text-sm);
-    z-index: 200;
+    z-index: var(--z-toast);
     /* In + delay 1.5s + out = 1.8s total. El JS lo remueve a los 1800ms. */
     animation: toastIn 0.3s ease-out, toastOut 0.3s ease-in 1.5s forwards;
 }
@@ -1061,7 +1103,7 @@ dialog.modal-backdrop::backdrop {
 
     .card:hover {
         transform: translateY(-4px);
-        box-shadow: 0 10px 15px -3px var(--shadow-color);
+        box-shadow: var(--shadow-md);
     }
 
     .btn-primary:hover {
@@ -1070,8 +1112,11 @@ dialog.modal-backdrop::backdrop {
     }
 
     .btn-secondary:hover {
-        background-color: var(--primary-color);
-        color: var(--surface);
+        /* Hover suma un fondo light primary (--surface-active ya está
+           calibrado en ambos themes) sin invertir el componente. El botón
+           sigue leyéndose como secundario, no se confunde con un primary.
+           Convención moderna: Vercel, Linear, GitHub. */
+        background-color: var(--surface-active);
     }
 
     .error-retry:hover {
@@ -1102,10 +1147,7 @@ footer p {
 
 /* Tablets (landscape) */
 @media (max-width: 64em) {
-    :root {
-        --sidebar-width: 200px;
-    }
-
+    /* --sidebar-width ya escala via clamp en :root; no hace falta override aquí. */
     header {
         padding: 0 var(--space-5);
     }
@@ -1144,9 +1186,8 @@ footer p {
         text-align: left;
     }
 
-    /* En mobile el title group y el role badge no aportan info crítica. */
-    .header-title-group,
-    .role-badge {
+    /* En mobile el title group no aporta info crítica. */
+    .header-title-group {
         display: none;
     }
 
@@ -1158,7 +1199,7 @@ footer p {
         /* Offset igual a la altura real del header (medida por JS).
            Si JS no corrió todavía, --header-height tiene el valor desktop por defecto. */
         top: var(--header-height);
-        z-index: 90;
+        z-index: var(--z-sidebar-mobile);
         background: var(--surface);
         height: auto;
         overflow-y: visible;

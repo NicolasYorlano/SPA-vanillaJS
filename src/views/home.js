@@ -1,6 +1,6 @@
 import { mainContainer } from '../lib/dom.js';
 import { ROUTE, pathFor, navigate } from '../lib/router.js';
-import { createIcon } from '../lib/icons.js';
+import { createIcon, ICON_SIZE } from '../lib/icons.js';
 
 const HOME_PHRASES = [
     { text: "La tecnología es mejor cuando une a las personas.", className: "shadow-1" },
@@ -14,11 +14,7 @@ export function renderHome() {
     mainContainer.replaceChildren();
 
     const title = document.createElement('h1');
-    // --plain: sin underline. En home queremos que la quote (azul + glow)
-    // gane el énfasis por color; mantener el underline en el h1 le crea un
-    // segundo foco visual del mismo peso y queda empatado. Las otras vistas
-    // (galerías, 404) sí lo necesitan como separador del contenido de abajo.
-    title.className = 'content-title content-title--plain';
+    title.className = 'content-title';
     title.textContent = 'Cats & Cars';
 
     const quote = document.createElement('h2');
@@ -59,7 +55,7 @@ function createHomeCta(routeName, titleText, descText) {
     arrow.className = 'home-cta-arrow';
     // El SVG dentro ya tiene aria-hidden; el span existe solo para hookear el
     // hover translateX y el cambio de color a primary.
-    arrow.append(createIcon('arrow-right', 20));
+    arrow.append(createIcon('arrow-right', ICON_SIZE.md));
     title.append(arrow);
 
     const desc = document.createElement('p');

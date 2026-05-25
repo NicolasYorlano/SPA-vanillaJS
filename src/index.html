@@ -57,10 +57,21 @@
 <body>
     <noscript>
         <style>
-            body > :not(.noscript-message) { display: none !important; }
+            /* Oculta TODO menos el propio <noscript>. El selector anterior
+               (`body > :not(.noscript-message)`) también matcheaba al
+               <noscript> porque .noscript-message vive ADENTRO del <noscript>,
+               no como child directo de body. Resultado: <noscript> se ocultaba
+               y por herencia su contenido también → pantalla en blanco. */
+            body > *:not(noscript) { display: none !important; }
+            /* Reset del grid del layout principal — con grid activo, el
+               margin:auto del message no lo centra (el grid lo confina a su
+               cell). display:block restaura flow normal para que el margin
+               horizontal automático lo centre como dicta el design. */
+            body { display: block !important; }
             .noscript-message {
                 max-width: 32rem;
-                margin: 4rem auto;
+                margin: 2rem auto;
+                margin-inline: 1rem;
                 padding: 1.5rem 2rem;
                 font-family: system-ui, sans-serif;
                 border: 1px solid #e2e8f0;

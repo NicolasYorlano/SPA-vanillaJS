@@ -120,8 +120,13 @@ export async function loadGallery({
             setTimeout(() => counter.classList.remove('is-updating'), 200);
         };
 
-        const render = (items) => {
-            const remaining = MAX_ITEMS - totalItems;
+        // `cap` opcional: máximo de items a renderizar de este batch puntual.
+        // Útil cuando el click handler hace retry y ya rendereó parte del target
+        // — sin cap, un segundo fetch con 6 items únicos haría saltar el contador
+        // de "5 agregados" a "11 agregados" en un solo click. Default Infinity
+        // = comportamiento original (cap solo por MAX_ITEMS global).
+        const render = (items, cap = Infinity) => {
+            const remaining = Math.min(cap, MAX_ITEMS - totalItems);
             if (remaining <= 0) return 0;
 
             const fragment = document.createDocumentFragment();
@@ -177,22 +182,45 @@ export async function loadGallery({
             loadMoreError.replaceChildren();
             const originalText = loadMoreBtn.textContent;
             loadMoreBtn.textContent = 'Cargando...';
-            loadMoreBtn.disabled = true;
+            // is-loading (no disabled) — el componente sigue al 100% de opacidad
+            // y muestra spinner CSS. pointer-events: none lo hace inerte sin
+            // disfrazarlo de inactivo.
+            loadMoreBtn.classList.add('is-loading');
             try {
-                const items = await fetchPage();
-                if (getActiveRoute() !== routeName) return;
-                if (items.length === 0) {
-                    exhausted = true;
-                    updateCounter();
-                    return;
+                // Garantía: el click suma exactamente `target` cards o agota.
+                // Si la API devuelve duplicados (TheCatAPI random sin key NO
+                // garantiza unicidad entre llamadas), reintentamos hasta
+                // MAX_RETRIES — el flujo viejo mostraba <6 cards en esos casos
+                // y la cantidad de clicks para llenar la galería se volvía
+                // impredecible. `cap = target - batchAdded` evita que un retry
+                // con muchos únicos haga saltar el contador más allá del target.
+                const target = Math.min(ITEMS_PER_PAGE, MAX_ITEMS - totalItems);
+                const MAX_RETRIES = 3;
+                let batchAdded = 0;
+                let attempt = 0;
+
+                while (batchAdded < target && attempt < MAX_RETRIES) {
+                    attempt++;
+                    const items = await fetchPage();
+                    if (getActiveRoute() !== routeName) return;
+                    if (items.length === 0) {
+                        // API explícitamente agotada (no son duplicados, no hay items).
+                        exhausted = true;
+                        break;
+                    }
+                    const added = render(items, target - batchAdded);
+                    batchAdded += added;
+                    if (added === 0) {
+                        // El lote completo eran duplicados de lo ya renderizado:
+                        // probable signal de que la API no tiene más contenido
+                        // nuevo en su pool aleatorio. Cortamos antes de quemar
+                        // más quota/buffer.
+                        exhausted = true;
+                        break;
+                    }
                 }
-                // Si la página trajo items pero todos eran duplicados de lo ya
-                // mostrado, render() agrega 0. La tratamos como agotada: seguir
-                // paginando difícilmente traiga algo nuevo, y evita que el
-                // usuario clickee "Cargar más" sin que el contador se mueva.
-                const added = render(items);
-                if (added === 0) exhausted = true;
-                else onBatchRendered?.(renderedItems); // persistir solo si hubo items nuevos
+
+                if (batchAdded > 0) onBatchRendered?.(renderedItems);
             } catch (error) {
                 if (error.name === 'AbortError') return;
                 logError(error);
@@ -203,7 +231,7 @@ export async function loadGallery({
                     showEndMessage();
                 } else {
                     loadMoreBtn.textContent = originalText;
-                    loadMoreBtn.disabled = false;
+                    loadMoreBtn.classList.remove('is-loading');
                 }
             }
         });

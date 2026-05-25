@@ -1,4 +1,4 @@
-import { createIcon } from '../lib/icons.js';
+import { createIcon, ICON_SIZE } from '../lib/icons.js';
 import { openCardModal } from './modal.js';
 
 export function createCard({ imgSrc, alt, name }) {
@@ -26,7 +26,7 @@ export function createCard({ imgSrc, alt, name }) {
         placeholder.className = 'img-error';
         // Ícono + label: el SVG comunica "imagen rota" antes de leer el texto,
         // útil para usuarios que escanean rápido. flex column del CSS apila.
-        placeholder.append(createIcon('image-off', 24), 'Imagen no disponible');
+        placeholder.append(createIcon('image-off', ICON_SIZE.lg), 'Imagen no disponible');
         imgContainer.appendChild(placeholder);
     });
     img.src = imgSrc;

@@ -9,13 +9,13 @@ APP EN PRODUCCIÓN: https://catsandcars-js.vercel.app/
 - Routing con **History API** (URLs limpias: `/`, `/cats`, `/cars`) con cancelación de fetches en vuelo al cambiar de ruta (`AbortController`).
 - **404 dedicada** con diseño editorial: layout horizontal con "404" como acento numérico, divisor vertical y contenido a la derecha. Preserva la URL inválida en la barra para que el usuario vea qué path intentó. Requiere SPA fallback del server para que el render lo dispare la app y no el server.
 - **Dark mode** con toggle persistente en `localStorage`, respeto inicial a `prefers-color-scheme` y script anti-FOUC inline para evitar flash en el primer paint.
-- Galerías con paginación incremental (botón "Cargar más") y deduplicación de resultados por ID.
+- Galerías con paginación incremental (botón "Cargar más") y deduplicación de resultados por ID. **Garantía de N cards por click incluso ante APIs sin unicidad entre llamadas**: cuando un lote trae duplicados, el render reintenta hasta `MAX_RETRIES` con cap por target — la cantidad de clicks para llenar la galería queda predecible.
 - **Cache persistente por sesión** (`sessionStorage`): volver a una galería —o recargar con F5 dentro de la misma pestaña— restaura los items previamente cargados, los nombres asignados a cada gato y la página de paginación. El botón **Actualizar** es el **único** opt-in explícito a fetchear contenido nuevo y preserva la posición de scroll. Cerrar la pestaña descarta todo el cache. El cache está versionado (`{ v, data }`) — un bump de `CACHE_VERSION` invalida limpiamente los caches viejos en el próximo F5.
 - Modal con elemento **`<dialog>` nativo**: focus trap, cierre con `Escape` o click en backdrop, skeleton de imagen mientras carga, auto-cierre al navegar a otra ruta.
 - Fetch con **timeout de 10s** (`AbortSignal.any` componiendo señales de router + timeout) y traducción del `AbortError` a mensaje legible.
-- Estados de error tipados (network, timeout, JSON inválido) con botón de reintento global y por-acción (reintento de "Cargar más" sin perder el progreso de la galería).
+- Estados de error tipados (network, timeout, JSON inválido) con botón de reintento global y por-acción (reintento de "Cargar más" sin perder el progreso de la galería). Loading state real con spinner CSS (`.is-loading`) — el botón mantiene 100% de opacidad y comunica progreso, distinto de un `disabled` inerte que se ve igual que un botón muerto.
 - **Iconografía SVG inline** estilo Lucide (24×24 viewBox, stroke-width 2, `currentColor`) — heredan el color del contenedor, sin requests adicionales.
-- **Content Security Policy** declarada via `<meta http-equiv>`: limita imágenes a los CDNs de las APIs y `connect-src` a sus endpoints, defensa en profundidad contra XSS si se filtra contenido externo.
+- **Content Security Policy** declarada via `<meta http-equiv>`: restringe `script-src` y `style-src` a `'self'`, `connect-src` a los endpoints de las APIs, y `img-src` a HTTPS arbitrario (necesario porque TheCatAPI sirve imágenes desde CDNs externos rotativos: tumblr, flickr, imgur, etc.). Defensa en profundidad contra XSS si se filtra contenido externo.
 - **Meta tags Open Graph** + `apple-touch-icon` + `twitter:card`: preview card profesional al compartir el link en redes (1200×630 @ 2x retina, diseño editorial).
 - Fallback con `<noscript>` para usuarios con JavaScript desactivado.
 - Soporte de `prefers-reduced-motion` y `prefers-color-scheme`.
@@ -63,6 +63,7 @@ main.js (entry: ensambla todo y arranca init)
 - **`fetchWithTimeout` recibe el `signal` por parámetro**: no importa al router. Las views le pasan `getCurrentController()?.signal` — el módulo de fetch queda como utilitario puro.
 - **Router no conoce caches**: `reloadCurrentRoute()` invoca al handler con `{ reload: true }`. Cada view (cats, cars) limpia su propio cache al ver esa señal. Inversion of control.
 - **`routes` table ensamblada en `main.js`**: el router recibe el map vía `initRouter({ routes, basePath })`. Las views dependen del router; el router NO depende de las views — sin ciclo.
+- **Sistema de tokens semánticos en `:root`**: 25+ variables CSS (color, spacing, shadows, typography, tracking, transitions, animation durations, icon sizes). El dark theme solo overridea las variables relevantes — los componentes nunca tocan valores literales. Cambiar el color primario o la tipografía base es modificar un solo lugar. `ICON_SIZE` en JS (`lib/icons.js`) espeja `--icon-*` del CSS para que los `<svg>` que se crean por JS usen la misma escala.
 
 ## APIs consumidas
 
@@ -116,12 +117,35 @@ appJS/
 │   ├── index.html             # Shell HTML; el contenido se inyecta dinámicamente
 │   ├── styles.css
 │   ├── main.js                # Entry point: ensambla routes y arranca init
-│   ├── lib/                   # Infraestructura: router, fetch, storage, theme, icons, dom, config
-│   ├── ui/                    # Componentes: card, modal, gallery, skeleton, empty, error, toast
-│   ├── views/                 # Vistas/rutas: home, notFound, cats, cars
-│   └── assets/                # PNGs públicos (favicon, apple-touch, og-image)
+│   ├── lib/
+│   │   ├── config.js
+│   │   ├── dom.js
+│   │   ├── fetch.js
+│   │   ├── icons.js
+│   │   ├── router.js
+│   │   ├── storage.js
+│   │   └── theme.js
+│   ├── ui/
+│   │   ├── card.js
+│   │   ├── empty.js
+│   │   ├── error.js
+│   │   ├── gallery.js
+│   │   ├── modal.js
+│   │   ├── skeleton.js
+│   │   └── toast.js
+│   ├── views/
+│   │   ├── cars.js
+│   │   ├── cats.js
+│   │   ├── home.js
+│   │   └── notFound.js
+│   └── assets/
+│       ├── apple-touch-icon.png
+│       ├── favicon.png
+│       └── og-image.png
 ├── package.json               # Script `npm run dev` (no hay deps en runtime)
 ├── vercel.json                # outputDirectory + SPA fallback
 ├── README.md
 └── .gitignore
 ```
+
+> El rol de cada archivo está documentado en la sección [Arquitectura](#arquitectura) — esta vista es solo el mapa del filesystem.
