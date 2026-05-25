@@ -48,15 +48,15 @@
 
     /* === LAYOUT === */
     --header-height: 70px;
-    /* clamp 200→260 entre tablet landscape y desktop: transición continua
-       sin saltos por breakpoint. */
-    --sidebar-width: clamp(200px, 18vw, 260px);
+    --sidebar-width: clamp(200px, 18vw, 260px);   /* fluid entre tablet landscape y desktop */
+    --container-max-width: 1200px;                /* cap del contenido en pantallas anchas */
+    --main-min-height: 400px;                     /* presencia visual en error/empty states */
+    --card-img-height: 200px;                     /* compartido por img-container, skeleton-img, modal-img-error */
 
-    /* === TRANSITIONS === */
-    /* Combinado: para componentes que animan varias propiedades a la vez
-       (bg, color, transform, shadow, border). */
+    /* === TRANSITIONS ===
+       --transition: combinado para componentes que animan varias props a la vez.
+       --transition-base/slow: por duración, para una sola propiedad. */
     --transition: background-color 0.3s ease, color 0.3s ease, transform 0.1s ease, box-shadow 0.3s ease, border-color 0.2s ease;
-    /* Por duración: para transiciones simples de una sola propiedad. */
     --transition-base: 0.2s ease;
     --transition-slow: 0.3s ease;
 
@@ -129,8 +129,8 @@
     color-scheme: dark;
 
     /* === BRAND ===
-       --primary-color está duplicado en el script inline de index.html (sync de theme-color).
-       Si cambia acá, actualizar ahí también. */
+       --primary-color está duplicado en el script anti-FOUC de index.html
+       (sync de meta theme-color). Si cambia acá, actualizar ahí también. */
     --primary-color: #60a5fa;
     --primary-hover: #93c5fd;
     --primary-accent: #3b82f6;
@@ -161,10 +161,9 @@
     --quote-glow-3: rgba(59, 130, 246, 0.4);
 
     /* === MODAL OVERLAYS ===
-       modal-close-bg queda OSCURO en ambos themes (no se invierte): el botón
-       flota sobre la IMAGEN del modal, no sobre el surface. La imagen puede
-       ser cualquier color — si en dark uso un fondo blanco translúcido y
-       la imagen es clara, blanco-sobre-blanco = X invisible. */
+        close-bg queda OSCURO en ambos themes (no se invierte): flota sobre
+        la imagen del modal, no sobre surface. Si fuera claro en dark, una
+        imagen clara haría la X invisible. */
     --modal-backdrop: rgba(0, 0, 0, 0.85);
     --modal-close-bg: rgba(0, 0, 0, 0.55);
     --modal-close-hover-bg: rgba(0, 0, 0, 0.85);
@@ -338,11 +337,11 @@ header p {
 
 /* --- THEME TOGGLE --- */
 .theme-toggle {
-    background: transparent;
+    background-color: transparent;
     border: 1px solid var(--border-color);
     border-radius: var(--radius-md);
-    width: 38px;
-    height: 38px;
+    width: var(--space-7);
+    height: var(--space-7);
     padding: 0;
     cursor: pointer;
     color: var(--text-main);
@@ -366,7 +365,7 @@ header p {
 
 @media (hover: hover) {
     .theme-toggle:hover {
-        background: var(--surface-muted);
+        background-color: var(--surface-muted);
         color: var(--primary-color);
         border-color: var(--primary-color);
     }
@@ -410,7 +409,7 @@ header p {
 
 .sidebar a {
     display: block;
-    background: transparent;
+    background-color: transparent;
     border: 1px solid transparent;
     padding: var(--space-3) var(--space-4);
     text-align: left;
@@ -432,17 +431,17 @@ header p {
 /* --- MAIN --- */
 main {
     grid-area: main;
+    
     justify-self: center;
-
     padding: var(--space-6);
-    max-width: 1200px;
+    max-width: var(--container-max-width);
     width: 100%;
 }
 
 main > div {
-    background: var(--surface);
+    background-color: var(--surface);
     border-radius: var(--radius-lg);
-    min-height: 400px;
+    min-height: var(--main-min-height);
     border: 1px solid var(--border-color);
     box-shadow: var(--shadow-sm);
     padding: var(--space-6);
@@ -453,13 +452,9 @@ main > div {
 
 /* --- CONTENIDO INYECTADO --- */
 .content-title {
-    /* Fluid typography: escala continua entre min (mobile) y max (desktop)
-       sin necesidad de overrides por breakpoint. */
     font-size: clamp(1.1rem, 1vw + 0.9rem, 1.5rem);
     font-weight: var(--weight-bold);
     color: var(--text-main);
-    /* Underline en --border-color: marca el límite con el contenido de abajo
-       sin competir con el primary que reservamos para acción/navegación activa. */
     border-bottom: var(--border-width-strong) solid var(--border-color);
     padding-bottom: var(--space-2);
     width: fit-content;
@@ -482,14 +477,11 @@ main > div {
     color: var(--text-muted);
     font-size: var(--text-sm);
     margin: 0;
-    /* ease-out: el dim arranca rápido y desacelera — gesto de "atención
-       acá" sin frenazo. 0.3s para que respire, no parpadee. */
     transition: opacity 0.3s ease-out;
 }
 
 .gallery-counter.is-updating {
-    /* 0.65 = dim perceptible pero no flicker. Antes era 0.4 (texto fantasma)
-       — desproporcionado para un evento tan sutil como "el contador subió". */
+    /* Dim perceptible pero no flicker — la opacidad nunca toca fondo. */
     opacity: 0.65;
 }
 
@@ -502,15 +494,13 @@ main > div {
 .card {
     border: 1px solid var(--border-color);
     border-radius: var(--radius-lg);
-    /* Padding intra-card más chico que el gap inter-card (1rem vs 1.5rem)
-       para que Gestalt-proximidad separe claramente cada card del vecino. */
     padding: var(--space-4);
-    background: var(--surface-elevated);
+    background-color: var(--surface-elevated);
     cursor: pointer;
     transition: var(--transition);
     animation: fadeIn 0.25s ease-out;
 
-    /* Reset para que <button class="card"> se vea idéntico a un div */
+    /* Reset para que <button class="card"> se vea idéntico a un div. */
     font: inherit;
     color: inherit;
     text-align: left;
@@ -522,9 +512,7 @@ main > div {
     transform: scale(0.98);
 }
 
-/* Patrón compartido del shimmer — usado por placeholders de imagen
-   (img-container, skeleton-img, modal-img-skeleton) y label (skeleton-name).
-   Tocando un solo lugar se cambia el ritmo del pulse en toda la app. */
+/* Shimmer del skeleton — compartido por placeholders de imagen y label. */
 .img-container,
 .skeleton-img,
 .skeleton-name,
@@ -537,7 +525,7 @@ main > div {
 .img-container {
     position: relative;
     width: 100%;
-    height: 200px;
+    height: var(--card-img-height);
     border-radius: var(--radius-md);
     overflow: hidden;
     margin-bottom: var(--space-3);
@@ -568,7 +556,7 @@ main > div {
     gap: var(--space-2);
     width: 100%;
     height: 100%;
-    background: var(--surface-muted);
+    background-color: var(--surface-muted);
     color: var(--text-muted);
     font-size: var(--text-sm);
 }
@@ -585,23 +573,21 @@ main > div {
 .skeleton-card {
     border: 1px solid var(--border-color);
     border-radius: var(--radius-lg);
-    /* Mismo padding que .card para que el reemplazo skeleton → card no
-       produzca salto de layout (CLS = 0). */
+    /* Mismo padding que .card → reemplazo sin layout shift (CLS = 0). */
     padding: var(--space-4);
-    background: var(--surface-elevated);
+    background-color: var(--surface-elevated);
 }
 
 .skeleton-img {
     width: 100%;
-    height: 200px;
+    height: var(--card-img-height);
     border-radius: var(--radius-md);
     margin-bottom: var(--space-3);
 }
 
 .skeleton-name {
     width: 60%;
-    /* Match con la altura renderizada de .card-name (font-size 1rem × line-height 1.5)
-       para evitar layout shift al reemplazar skeleton por contenido real. */
+    /* 1.5rem = altura renderizada de .card-name → evita layout shift. */
     height: 1.5rem;
     margin-top: var(--space-3);
     border-radius: var(--radius-sm);
@@ -610,7 +596,7 @@ main > div {
 /* --- ERROR & EMPTY --- */
 .error-msg {
     color: var(--error-color);
-    background: var(--error-bg);
+    background-color: var(--error-bg);
     padding: var(--space-4);
     border-radius: var(--radius-md);
     text-align: center;
@@ -620,8 +606,7 @@ main > div {
     margin: 0;
 }
 
-/* h1 dentro de error-msg (solo en errores full-screen con retry). Anchor para
-   focusMainHeading y para usuarios de screen reader. */
+/* h1 del error full-screen — anchor para focusMainHeading + screen readers. */
 .error-title {
     font-size: var(--text-lg);
     font-weight: var(--weight-bold);
@@ -647,18 +632,14 @@ main > div {
 
 .empty-state {
     grid-column: 1 / -1;
-    /* Flex column para que texto y CTA se apilen centrados, ambos abrazando
-       su contenido (el botón hereda btn-primary inline-block — flex column
-       con align-items center lo centra sin estirar). */
+    /* align-items center abraza al btn-primary (inline-flex) sin estirarlo. */
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: var(--space-4);
     color: var(--text-muted);
-    /* Fondo + border-radius para que el componente se lea como "panel
-       informativo" igual que .error-msg — coherencia entre los dos estados
-       de no-contenido. */
-    background: var(--surface-muted);
+    /* Fondo + radius → se lee como "panel", coherente con .error-msg. */
+    background-color: var(--surface-muted);
     padding: var(--space-6);
     border-radius: var(--radius-md);
     text-align: center;
@@ -671,10 +652,7 @@ main > div {
     max-width: var(--prose-max-width);
 }
 
-/* === 404 — Página no encontrada ===
-   Layout editorial estilo Vercel: "404" a la izquierda como acento numérico,
-   divisor vertical, contenido alineado a la derecha. Tipografía sólida sin
-   gradient ni glow — la jerarquía la fija la composición y los pesos. */
+/* === 404 — layout editorial: "404" + divisor vertical + contenido === */
 
 .not-found {
     flex: 1;
@@ -686,9 +664,8 @@ main > div {
 }
 
 .not-found-code {
-    /* Tamaño mediano fluido (~56→104px) — acento numérico, no protagonista.
-       Color sólido text-main, tracking ajustado para densidad tipográfica.
-       padding-right + border-right arman el divisor vertical clásico. */
+    /* Acento numérico (no protagonista). El divisor vertical lo arman
+       padding-right + border-right. */
     font-size: clamp(3.5rem, 6vw + 1rem, 6.5rem);
     font-weight: var(--weight-bold);
     line-height: var(--leading-none);
@@ -709,7 +686,6 @@ main > div {
 }
 
 .not-found-title {
-    /* h1 con peso bold y tracking apretado — editorial, no marketing. */
     font-size: clamp(1.5rem, 1.5vw + 1rem, 2rem);
     font-weight: var(--weight-bold);
     color: var(--text-main);
@@ -747,12 +723,9 @@ main > div {
 }
 
 /* --- BUTTONS --- */
-/* Shared base de las variantes. inline-flex para alinear ícono SVG + label;
-   justify-content center importa cuando en mobile pasa a width:100%.
-   line-height explícito porque sin esto el componente como <a> hereda
-   --leading-normal (1.5) y como <button> usa "normal" (~1.2), dando 5px
-   de diferencia visual entre el CTA del 404 y los botones de galería.
-   text-decoration none cubre el caso <a class="btn-*">. */
+/* Base compartida. line-height explícito porque <a> hereda --leading-normal
+   y <button> usa "normal" (~1.2): sin esto, el CTA del 404 mide 5px más alto
+   que los botones de galería. text-decoration cubre <a class="btn-*">. */
 .btn-primary,
 .btn-secondary {
     display: inline-flex;
@@ -785,8 +758,7 @@ main > div {
     transform: none;
 }
 
-/* Loading: distinto de disabled — sí está pasando algo. Mantenemos
-   opacity 1, bloqueamos pointer-events, agregamos spinner. */
+/* Loading ≠ disabled: opacity 1 + spinner → comunica progreso, no inerte. */
 .btn-primary.is-loading {
     pointer-events: none;
     cursor: wait;
@@ -797,14 +769,14 @@ main > div {
     content: '';
     width: 14px;
     height: 14px;
-    border: 2px solid currentColor;
+    border: var(--border-width-strong) solid currentColor;
     border-right-color: transparent;
     border-radius: 50%;
     animation: spin 0.7s linear infinite;
 }
 
 .btn-secondary {
-    background: transparent;
+    background-color: transparent;
     color: var(--primary-color);
     border: var(--border-width-strong) solid var(--primary-color);
     padding: var(--space-2) var(--space-4);
@@ -817,7 +789,6 @@ main > div {
 
 /* --- HOME --- */
 .highlighted-quote {
-    /* Misma estrategia clamp que .content-title — fluid sin overrides por breakpoint. */
     font-size: clamp(1.15rem, 0.8vw + 0.95rem, 1.5rem);
     margin: var(--space-5) 0;
 }
@@ -838,10 +809,7 @@ main > div {
 }
 
 .expectations-paragraph {
-    background: var(--bg-color);
-    /* border-left a --border-color (era --primary-color): el bloque sigue
-       leyéndose como callout por la barra lateral y el bg distinto, sin
-       gastar el azul de marca en decoración. */
+    background-color: var(--bg-color);
     border-left: 4px solid var(--border-color);
     padding: var(--space-4) var(--space-5);
     border-radius: 0 var(--radius-md) var(--radius-md) 0;
@@ -871,7 +839,7 @@ main > div {
     position: relative;
     display: block;
     padding: var(--space-5);
-    background: var(--surface-elevated);
+    background-color: var(--surface-elevated);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-lg);
     text-decoration: none;
@@ -880,9 +848,23 @@ main > div {
     transition: var(--transition);
 }
 
-/* El indicador de hover/focus del CTA viene del border-color del card y del
-   color/translateX de .home-cta-arrow. Se eliminó la línea vertical accent
-   primary que duplicaba esa señal. */
+.home-cta::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background-color: var(--primary-color);
+    transform: scaleY(0);
+    transform-origin: top;
+    transition: transform var(--transition-base);
+}
+
+.home-cta:hover::before,
+.home-cta:focus-visible::before {
+    transform: scaleY(1);
+}
 
 .home-cta:active {
     transform: scale(0.98);
@@ -900,8 +882,7 @@ main > div {
 }
 
 .home-cta-arrow {
-    /* Tamaño y peso lo controla el <svg> (width/height + stroke-width).
-       Acá solo color (heredado por currentColor) y la transición de hover. */
+    /* Tamaño lo controla el <svg>. Acá solo color + transición de hover. */
     color: var(--text-muted);
     transition: transform var(--transition-base), color var(--transition-base);
 }
@@ -951,9 +932,7 @@ main > div {
 .modal-backdrop {
     position: fixed;
     inset: 0;
-    background: var(--modal-backdrop);
-    /* blur(6px) unificado con .modal-close — ambos refuerzan la separación
-       visual del modal respecto al contenido de fondo. */
+    background-color: var(--modal-backdrop);
     backdrop-filter: blur(6px);
     -webkit-backdrop-filter: blur(6px);
     display: flex;
@@ -964,7 +943,7 @@ main > div {
     animation: modalFadeIn 0.2s ease-out;
 }
 
-/* Overrides cuando .modal-backdrop está aplicado a un <dialog> nativo */
+/* Reset de los defaults del <dialog> nativo. */
 dialog.modal-backdrop {
     width: auto;
     height: auto;
@@ -976,7 +955,7 @@ dialog.modal-backdrop {
 }
 
 dialog.modal-backdrop::backdrop {
-    background: transparent;
+    background-color: transparent;
 }
 
 .modal-backdrop.modal-closing {
@@ -985,7 +964,7 @@ dialog.modal-backdrop::backdrop {
 
 .modal-dialog {
     position: relative;
-    background: var(--surface);
+    background-color: var(--surface);
     border-radius: var(--radius-lg);
     padding: var(--space-4);
     max-width: min(90vw, 800px);
@@ -1003,18 +982,13 @@ dialog.modal-backdrop::backdrop {
 
 .modal-close {
     position: absolute;
-    /* space-3 (12px) — el space-2 quedaba apretado contra el borde del
-       dialog, sobre todo cuando coincidía con una imagen clara debajo. */
     top: var(--space-3);
     right: var(--space-3);
-    background: var(--modal-close-bg);
-    /* X blanca + bg negro semi-transparente → contraste alto sobre cualquier
-       imagen detrás (clara, oscura, ruidosa). Sin esto, en dark mode con bg
-       blanco translúcido la X se hacía invisible sobre imágenes claras. */
+    background-color: var(--modal-close-bg);
+    /* X blanca fija (NO usar tokens de --text-*): contraste alto sobre
+       cualquier imagen del modal, en ambos themes. */
     color: #fff;
-    /* Blur del backdrop para reforzar la separación visual del button
-       contra el contenido de fondo, sin importar qué imagen esté detrás.
-       Soporte: Safari 9+, Chrome 76+, Firefox 103+. -webkit- por Safari < 18. */
+    /* Blur refuerza la separación visual del botón contra la imagen de fondo. */
     backdrop-filter: blur(6px);
     -webkit-backdrop-filter: blur(6px);
     border: none;
@@ -1041,13 +1015,13 @@ dialog.modal-backdrop::backdrop {
 
 .modal-img-error {
     width: 100%;
-    height: 200px;
+    height: var(--card-img-height);
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     gap: var(--space-2);
-    background: var(--surface-muted);
+    background-color: var(--surface-muted);
     color: var(--text-muted);
     font-size: var(--text-base);
     border-radius: var(--radius-md);
@@ -1070,15 +1044,12 @@ dialog.modal-backdrop::backdrop {
 
 /* --- TOAST --- */
 .toast {
-    /* Confirmación efímera. Vive en <body> (no en main) para que sobreviva
-       a cualquier mainContainer.replaceChildren() del flujo del router.
-       Bottom-right: estándar de productos modernos (Linear, Vercel, GitHub),
-       no choca con "Cargar más" (centrado al pie) y dibuja una diagonal
-       limpia con el botón "Actualizar" que dispara la acción (top-right). */
+    /* Vive en <body> (no en main) para sobrevivir a los replaceChildren()
+       del router. Bottom-right: estándar moderno (Linear, Vercel, GitHub). */
     position: fixed;
     bottom: var(--space-5);
     right: var(--space-5);
-    background: var(--surface);
+    background-color: var(--surface);
     color: var(--text-main);
     border: 1px solid var(--border-color);
     box-shadow: var(--shadow-sm);
@@ -1086,7 +1057,7 @@ dialog.modal-backdrop::backdrop {
     border-radius: var(--radius-md);
     font-size: var(--text-sm);
     z-index: var(--z-toast);
-    /* In + delay 1.5s + out = 1.8s total. El JS lo remueve a los 1800ms. */
+    /* Total 1.8s = in(0.3) + hold(1.5) + out(0.3 forwards). JS remueve a 1800ms. */
     animation: toastIn 0.3s ease-out, toastOut 0.3s ease-in 1.5s forwards;
 }
 
@@ -1112,10 +1083,7 @@ dialog.modal-backdrop::backdrop {
     }
 
     .btn-secondary:hover {
-        /* Hover suma un fondo light primary (--surface-active ya está
-           calibrado en ambos themes) sin invertir el componente. El botón
-           sigue leyéndose como secundario, no se confunde con un primary.
-           Convención moderna: Vercel, Linear, GitHub. */
+        /* Hover suma fondo sutil sin invertir → mantiene la lectura "secundario". */
         background-color: var(--surface-active);
     }
 
@@ -1125,7 +1093,7 @@ dialog.modal-backdrop::backdrop {
     }
 
     .modal-close:hover {
-        background: var(--modal-close-hover-bg);
+        background-color: var(--modal-close-hover-bg);
     }
 }
 
@@ -1200,7 +1168,7 @@ footer p {
            Si JS no corrió todavía, --header-height tiene el valor desktop por defecto. */
         top: var(--header-height);
         z-index: var(--z-sidebar-mobile);
-        background: var(--surface);
+        background-color: var(--surface);
         height: auto;
         overflow-y: visible;
 
@@ -1226,7 +1194,7 @@ footer p {
         /* 0.75rem vertical → ~44px alto total, target táctil cómodo (WCAG 2.5.5 AAA). */
         padding: var(--space-3) var(--space-4);
         font-size: var(--text-sm);
-        background: var(--surface-muted);
+        background-color: var(--surface-muted);
     }
 
     /* Targets táctiles 44×44 (WCAG 2.5.5 AAA) en mobile. */
