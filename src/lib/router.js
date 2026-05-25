@@ -15,7 +15,7 @@ export const ROUTE = Object.freeze({
 
 const ROUTE_TITLES = {
     [ROUTE.HOME]: 'Inicio',
-    [ROUTE.CATS]: 'Gatitos',
+    [ROUTE.CATS]: 'Gatos',
     [ROUTE.CARS]: 'Autos',
     [ROUTE.NOT_FOUND]: '404'
 };
