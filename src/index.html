@@ -26,14 +26,24 @@
          no, plataformas como LinkedIn degradan el card a formato chico. -->
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://catsandcars-js.vercel.app/">
-    <meta property="og:title" content="TP1 — TyGW · Cats &amp; Cars">
+    <meta property="og:title" content="Cats &amp; Cars — Galería SPA en vanilla JS · TP1 TyGW">
     <meta property="og:description" content="Galería SPA que consume The Cat API y Pixabay. Vanilla JS con router History API, cache versionado y modal accesible.">
     <meta property="og:image" content="https://catsandcars-js.vercel.app/assets/og-image.png">
     <meta property="og:image:width" content="2400">
     <meta property="og:image:height" content="1260">
     <meta property="og:image:alt" content="Cats & Cars — galería SPA en vanilla JavaScript que combina The Cat API y Pixabay">
     <meta property="og:locale" content="es_AR">
+
+    <!-- Twitter Cards: Twitter cae a og:* solo para algunos campos. Para
+         twitter:description cae al <meta name="description"> (HTML general,
+         pensado para Google) que es distinto del og:description. Declaramos
+         twitter:* explícitos mapeando los valores OG para que Twitter muestre
+         lo mismo que LinkedIn/WhatsApp/etc., no el meta description SEO. -->
     <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Cats &amp; Cars — Galería SPA en vanilla JS · TP1 TyGW">
+    <meta name="twitter:description" content="Galería SPA que consume The Cat API y Pixabay. Vanilla JS con router History API, cache versionado y modal accesible.">
+    <meta name="twitter:image" content="https://catsandcars-js.vercel.app/assets/og-image.png">
+    <meta name="twitter:image:alt" content="Cats & Cars — galería SPA en vanilla JavaScript que combina The Cat API y Pixabay">
 
     <!--
         Inline script anti-FOUC en dark mode: scripts.js es ES module (deferred) y no
