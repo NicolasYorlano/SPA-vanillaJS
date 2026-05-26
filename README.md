@@ -15,7 +15,7 @@ APP EN PRODUCCIÓN: https://catsandcars-js.vercel.app/
 - Fetch con **timeout de 10s** (`AbortSignal.any` componiendo señales de router + timeout) y traducción del `AbortError` a mensaje legible.
 - Estados de error tipados (network, timeout, JSON inválido) con botón de reintento global y por-acción (reintento de "Cargar más" sin perder el progreso de la galería). Loading state real con spinner CSS (`.is-loading`) — el botón mantiene 100% de opacidad y comunica progreso, distinto de un `disabled` inerte que se ve igual que un botón muerto.
 - **Iconografía SVG inline** estilo Lucide (24×24 viewBox, stroke-width 2, `currentColor`) — heredan el color del contenedor, sin requests adicionales.
-- **Content Security Policy** declarada via `<meta http-equiv>`: restringe `script-src` y `style-src` a `'self'`, `connect-src` a los endpoints de las APIs, y `img-src` a HTTPS arbitrario (necesario porque TheCatAPI sirve imágenes desde CDNs externos rotativos: tumblr, flickr, imgur, etc.). Defensa en profundidad contra XSS si se filtra contenido externo.
+- **Content Security Policy** declarada via `<meta http-equiv>`: restringe `script-src` y `style-src` a `'self' 'unsafe-inline'` (`unsafe-inline` es necesario por el script anti-FOUC y el `<style>` del `<noscript>`), `connect-src` a los endpoints de las APIs, y `img-src` a HTTPS arbitrario (necesario porque TheCatAPI sirve imágenes desde CDNs externos rotativos: tumblr, flickr, imgur, etc.). Defensa en profundidad contra XSS si se filtra contenido externo.
 - **Meta tags Open Graph** + `apple-touch-icon` + `twitter:card`: preview card profesional al compartir el link en redes (1200×630 @ 2x retina, diseño editorial).
 - Fallback con `<noscript>` para usuarios con JavaScript desactivado.
 - Soporte de `prefers-reduced-motion` y `prefers-color-scheme`.
@@ -63,7 +63,7 @@ main.js (entry: ensambla todo y arranca init)
 - **`fetchWithTimeout` recibe el `signal` por parámetro**: no importa al router. Las views le pasan `getCurrentController()?.signal` — el módulo de fetch queda como utilitario puro.
 - **Router no conoce caches**: `reloadCurrentRoute()` invoca al handler con `{ reload: true }`. Cada view (cats, cars) limpia su propio cache al ver esa señal. Inversion of control.
 - **`routes` table ensamblada en `main.js`**: el router recibe el map vía `initRouter({ routes, basePath })`. Las views dependen del router; el router NO depende de las views — sin ciclo.
-- **Sistema de tokens semánticos en `:root`**: 25+ variables CSS (color, spacing, shadows, typography, tracking, transitions, animation durations, icon sizes). El dark theme solo overridea las variables relevantes — los componentes nunca tocan valores literales. Cambiar el color primario o la tipografía base es modificar un solo lugar. `ICON_SIZE` en JS (`lib/icons.js`) espeja `--icon-*` del CSS para que los `<svg>` que se crean por JS usen la misma escala.
+- **Sistema de tokens semánticos en `:root`**: 70+ variables CSS (color, spacing, shadows, typography, tracking, transitions, animation durations, icon sizes). El dark theme solo overridea las variables relevantes — los componentes nunca tocan valores literales. Cambiar el color primario o la tipografía base es modificar un solo lugar. `ICON_SIZE` en JS (`lib/icons.js`) espeja `--icon-*` del CSS para que los `<svg>` que se crean por JS usen la misma escala.
 
 ## APIs consumidas
 

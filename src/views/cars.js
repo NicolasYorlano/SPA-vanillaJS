@@ -7,10 +7,8 @@ import { loadGallery } from '../ui/gallery.js';
 // Rango de páginas para el random inicial en la API de autos.
 const PAGE_RANGE = 10;
 
-// Whitelist de marcas/modelos para extraer el nombre del auto.
-// Pixabay devuelve tags ordenados por relevancia, pero el primero suele ser
-// genérico ("alloy wheel", "tire", "engine"). Buscamos el primer tag que
-// matchee una marca conocida; si ninguno matchea, fallback al primer tag.
+// Whitelist de marcas. Pixabay ordena tags por relevancia pero el primero suele
+// ser genérico ("alloy wheel", "tire", "engine") — usamos esta lista para saltarlos.
 const CAR_BRANDS = [
     'ferrari', 'lamborghini', 'porsche', 'bugatti', 'mclaren',
     'koenigsegg', 'pagani', 'aston martin', 'maserati', 'bentley',
@@ -63,6 +61,8 @@ function readOrCreateCarsStartPage() {
     return initial;
 }
 
+// Garantiza next ≠ prev: sin el guard, el random puede repetir y "Ver otros autos"
+// queda como un no-op visual cuando vuelve a caer en la misma página.
 function rotateCarsStartPage() {
     const prev = readOrCreateCarsStartPage();
     let next = Math.floor(Math.random() * PAGE_RANGE) + 1;

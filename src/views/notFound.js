@@ -5,9 +5,7 @@ import { createIcon } from '../lib/icons.js';
 export function renderNotFound() {
     mainContainer.replaceChildren();
 
-    // Layout editorial estilo Vercel: "404" a la izquierda, separador
-    // vertical, contenido a la derecha. Jerarquía por composición y
-    // tipografía sólida — sin gradient ni efectos visuales.
+    // Layout editorial estilo Vercel: "404" a la izquierda, divisor vertical, contenido a la derecha.
     const wrap = document.createElement('section');
     wrap.className = 'not-found';
 

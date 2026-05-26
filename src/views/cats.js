@@ -14,8 +14,8 @@ const CATS_CACHE_KEY = 'cats:cache';
 
 // Cache de items + nombres asignados. Persistido en sessionStorage para que
 // sobreviva F5 — el contrato es que "Actualizar" es el ÚNICO opt-in explícito
-// a contenido nuevo. Se hidrata en hydrate() (llamada por main) y se borra
-// cuando el router llama a fetchCats con { reload: true }.
+// a contenido nuevo. Se hidrata en hydrateCatsCache() (llamada por main) y se
+// borra cuando el router llama a fetchCats con { reload: true }.
 let catsCache = null; // { items: Array<{id, url, ...}>, names: Map<catId, name> }
 
 // Map no es JSON-serializable nativo: lo guardamos como array de entries.
@@ -104,10 +104,8 @@ export function fetchCats({ reload } = {}) {
         return name;
     };
 
-    // Buffer local: el Cat API devuelve CATS_API_BATCH (10) por llamada, pero
-    // al usuario le servimos ITEMS_PER_PAGE (6) por click — mismo ritmo que
-    // cars. Los 4 sobrantes esperan acá para el próximo click sin pegarle a
-    // la API. No se persiste: F5 puede gastar una llamada extra, aceptable.
+    // Buffer local para los 4 sobrantes de cada batch (ver comment de
+    // CATS_API_BATCH). No se persiste: F5 puede gastar una llamada extra, aceptable.
     let buffer = [];
 
     return loadGallery({
@@ -119,7 +117,6 @@ export function fetchCats({ reload } = {}) {
         },
         itemNoun: 'gatos',
         getCachedItems: () => catsCache?.items ?? null,
-        // skeletonCount: default = ITEMS_PER_PAGE (6), mismo que cars.
         fetchPage: async () => {
             if (buffer.length < ITEMS_PER_PAGE) {
                 const response = await fetchWithTimeout(

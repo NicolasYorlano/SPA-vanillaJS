@@ -1,10 +1,6 @@
-// Acceso defensivo a Web Storage.
-//
-// localStorage/sessionStorage pueden tirar SecurityError en Firefox con
-// cookies bloqueadas o en iframes sandbox, y QuotaExceededError al escribir.
-// Estos wrappers son la ÚNICA vía de acceso a Web Storage en la app: si
-// alguno falla, degradamos en silencio (get → null, set/remove → no-op)
-// sin romper nada.
+// Wrappers defensivos de Web Storage. Firefox con cookies bloqueadas o iframes
+// sandbox tiran SecurityError; setItem también puede tirar QuotaExceededError.
+// Ante error degradan en silencio: get → null, set/remove → no-op.
 
 export function safeStorageGet(key) {
     try { return localStorage.getItem(key); } catch { return null; }

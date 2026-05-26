@@ -1,10 +1,10 @@
 import { mainContainer, navLinks } from './dom.js';
 import { showToast } from '../ui/toast.js';
 
-// Router con History API. Stateless desde fuera: el estado vive acá adentro
-// (activeRoute, currentController, routes table, basePath) y se accede via
-// getters exportados. main.js inyecta la routes table y el basePath via
-// initRouter() — el router no conoce ni a las views ni a la URL del deploy.
+// Router con History API. State interno + getters exportados; main.js inyecta
+// routes y basePath via initRouter() — el router no conoce ni a las views ni a
+// la URL del deploy. currentController se renueva en cada cambio de ruta para
+// que las views aborten su fetch en vuelo.
 
 export const ROUTE = Object.freeze({
     HOME: 'home',
@@ -22,7 +22,6 @@ const ROUTE_TITLES = {
 
 const baseTitle = document.title;
 
-// State interno del router
 let routes = Object.create(null);
 let basePath = '';
 let activeRoute = null;
@@ -32,10 +31,8 @@ let currentController = null;
 export function getActiveRoute() { return activeRoute; }
 export function getCurrentController() { return currentController; }
 
-// Inicializa el router con la routes table y el basePath calculado por main.js.
-// basePath se calcula con `new URL('.', import.meta.url).pathname` desde main.js
-// (que está en la raíz del deploy) — no acá, porque acá import.meta.url apunta
-// a /lib/router.js y daría un base incorrecto.
+// basePath y routes se inyectan desde main.js. Ver main.js para por qué basePath
+// no se calcula acá adentro.
 export function initRouter({ routes: routesMap, basePath: bp }) {
     routes = routesMap;
     basePath = bp;
@@ -66,12 +63,8 @@ export function navigate(routeName) {
     handleRouteChange(false);
 }
 
-// Recarga la ruta actual (botón "Actualizar"): aborta fetches, renueva
-// controller, dispara el handler con { reload: true } para que la view
-// limpie su propio cache si corresponde, preserva scroll, toast si exitoso.
-//
-// El router NO conoce caches específicas (catsCache, carsCache) — cada view
-// se hace cargo del suyo cuando ve la señal `{ reload: true }`.
+// Recarga la ruta actual con { reload: true } y preserva scroll. El router NO
+// conoce caches específicas — cada view se hace cargo del suyo al ver la señal.
 export async function reloadCurrentRoute() {
     if (!activeRoute || activeRoute === ROUTE.HOME) return;
     const routeAtStart = activeRoute;
@@ -132,6 +125,8 @@ function updateActiveNavLink(activeLink) {
     activeLink.setAttribute('aria-current', 'page');
 
     const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    // inline:center + block:nearest — en mobile el sidebar es scroll horizontal:
+    // centra el link activo sin disparar scroll vertical de la página.
     activeLink.scrollIntoView({
         behavior: prefersReduced ? 'auto' : 'smooth',
         inline: 'center',

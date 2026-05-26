@@ -7,9 +7,7 @@ import { showError, humanizeError, logError } from './error.js';
 import { showEmptyState } from './empty.js';
 import { createCard } from './card.js';
 
-// Crea el shell de una galería: header con título + counter + botón
-// "Actualizar", grid vacío y zona de "Cargar más" + slot para errores.
-// Devuelve referencias a los nodos que loadGallery va a poblar.
+// Crea el shell vacío de una galería. Devuelve refs a los nodos que loadGallery va a poblar.
 export function createGallerySection({ titleText, refreshText, loadMoreText }) {
     mainContainer.replaceChildren();
 

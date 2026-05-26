@@ -1,6 +1,4 @@
-// Constantes de configuración global de la aplicación.
-// Módulos específicos (cats, cars) tienen sus propias constantes locales
-// que viven en sus archivos — acá solo lo que es transversal.
+// Constantes transversales. Las locales viven en cada archivo.
 
 // Cap de items por galería. Acotamos por UX (galerías infinitas cansan) y por
 // estabilidad (Pixabay tiene rate limit; el Cat API sin API key es lento).

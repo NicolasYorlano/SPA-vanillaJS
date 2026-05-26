@@ -1,6 +1,4 @@
-// Entry point: arma la routes table, calcula basePath, e inicializa el router
-// + theme + listeners de navegación. Este archivo es el único que conoce a
-// todos los módulos — es el ensamblador.
+// Entry point: ensambla routes table + basePath y arranca init. Único módulo que conoce a todos los demás.
 
 import { ROUTE, initRouter, pathFor, navigate, handleRouteChange, getActiveRoute } from './lib/router.js';
 import { initTheme } from './lib/theme.js';
@@ -10,11 +8,9 @@ import { renderNotFound } from './views/notFound.js';
 import { fetchCats, hydrateCatsCache } from './views/cats.js';
 import { fetchLuxuryCars, hydrateCarsCache } from './views/cars.js';
 
-// basePath se calcula acá porque main.js vive en la raíz del deploy:
-// new URL('.', import.meta.url) → URL del directorio que contiene main.js.
-// Si esto se calculara dentro de lib/router.js, apuntaría a /lib/ y daría
-// un base incorrecto. .replace(/\/$/, '') normaliza para evitar dobles slash
-// al concatenar con la ruta.
+// basePath se calcula acá (main.js vive en la raíz del deploy), no en lib/router.js
+// — desde ahí import.meta.url apuntaría a /lib/ y daría un base incorrecto.
+// .replace(/\/$/, '') normaliza para evitar doble slash al concatenar la ruta.
 const basePath = new URL('.', import.meta.url).pathname.replace(/\/$/, '');
 
 // Lookup ruta → handler. Object.create(null) evita prototype pollution.

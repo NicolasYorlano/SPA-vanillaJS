@@ -1046,11 +1046,7 @@ dialog.modal-backdrop::backdrop {
 }
 
 /* --- TOAST ---
-   Estructura de 2 capas:
-   - .toast-host: anclaje en pantalla (desktop bottom-right / mobile bottom-center).
-   - .toast: el pill visible con su animación.
-   Separar layout del componente permite cambiar el anclaje responsive sin
-   tocar las keyframes (translateY puro, independiente del posicionamiento). */
+   Estructura de 2 capas: .toast-host ancla, .toast presenta. Ver ui/toast.js. */
 .toast-host {
     /* Vive en <body> (no en main) para sobrevivir a los replaceChildren()
        del router. Bottom-right: estándar moderno (Linear, Vercel, GitHub). */

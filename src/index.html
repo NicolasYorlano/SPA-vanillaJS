@@ -10,20 +10,16 @@
     <meta name="author" content="Nicolás Yorlano">
     <meta name="theme-color" content="#2563eb">
     <link rel="canonical" href="https://catsandcars-js.vercel.app/">
-    <!-- Paths absolutos para que deep links (F5 en /cars, /cats/x, etc) carguen
-         los assets desde root del deploy, no relativo a la ruta actual del browser.
-         Es el patrón estándar de SPA (Vite, Next, Vue CLI lo generan así). -->
+    <!-- Paths absolutos: F5 en /cars o /cats/x debe cargar assets desde root del
+         deploy, no relativo a la ruta actual del browser. -->
     <link rel="stylesheet" href="/styles.css">
     <link rel="icon" type="image/png" href="/assets/favicon.png">
     <link rel="apple-touch-icon" sizes="180x180" href="/assets/apple-touch-icon.png">
 
-    <!-- Open Graph: estándar de facto para link previews en redes y chats
-         (WhatsApp, Discord, Slack, LinkedIn, iMessage, Telegram, Signal,
-         Facebook, Twitter/X via fallback, etc.). Imagen 2400×1260 @2x retina
-         (ratio 1.91:1, recomendado de OG); URL absoluta porque los crawlers
-         resuelven og:image desde su propio CDN, no desde el browser del usuario.
-         width/height DEBEN matchear las dimensiones reales del archivo — si
-         no, plataformas como LinkedIn degradan el card a formato chico. -->
+    <!-- og:image 2400×1260 @2x retina (ratio 1.91:1). URL absoluta porque los
+         crawlers la resuelven desde su CDN, no desde el browser del usuario.
+         width/height DEBEN matchear el archivo real — LinkedIn degrada el card
+         a formato chico si no coinciden. -->
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://catsandcars-js.vercel.app/">
     <meta property="og:title" content="Cats &amp; Cars — Galería SPA en vanilla JS · TP1 TyGW">
@@ -34,22 +30,17 @@
     <meta property="og:image:alt" content="Cats & Cars — galería SPA en vanilla JavaScript que combina The Cat API y Pixabay">
     <meta property="og:locale" content="es_AR">
 
-    <!-- Twitter Cards: Twitter cae a og:* solo para algunos campos. Para
-         twitter:description cae al <meta name="description"> (HTML general,
-         pensado para Google) que es distinto del og:description. Declaramos
-         twitter:* explícitos mapeando los valores OG para que Twitter muestre
-         lo mismo que LinkedIn/WhatsApp/etc., no el meta description SEO. -->
+    <!-- Twitter cae a <meta name="description"> (SEO) para twitter:description,
+         no a og:description. Declaramos twitter:* explícitos para que muestre
+         lo mismo que LinkedIn/WhatsApp/etc., no el meta description. -->
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="Cats &amp; Cars — Galería SPA en vanilla JS · TP1 TyGW">
     <meta name="twitter:description" content="Galería SPA que consume The Cat API y Pixabay. Vanilla JS con router History API, cache versionado y modal accesible.">
     <meta name="twitter:image" content="https://catsandcars-js.vercel.app/assets/og-image.png">
     <meta name="twitter:image:alt" content="Cats & Cars — galería SPA en vanilla JavaScript que combina The Cat API y Pixabay">
 
-    <!--
-        Inline script anti-FOUC en dark mode: scripts.js es ES module (deferred) y no
-        puede aplicar el theme antes del primer paint. Este script sí, porque corre
-        sincronicamente antes del CSS. Patrón usado por Next.js, Vercel, GitHub.
-    -->
+    <!-- Anti-FOUC: aplica el theme antes del primer paint. main.js es ES module
+         (deferred) → corre tarde. Este inline corre sincrónicamente antes del CSS. -->
     <script>
         (function () {
             // localStorage puede tirar (Firefox con cookies bloqueadas / iframes sandbox).
@@ -62,7 +53,7 @@
                     document.documentElement.setAttribute('data-theme', 'dark');
                     // Pre-sync theme-color para evitar flash en la URL bar de mobile.
                     // Debe matchear --primary-color del bloque [data-theme="dark"] en styles.css.
-                    // applyTheme() lo refina cuando scripts.js carga.
+                    // applyTheme() lo refina cuando main.js carga.
                     const meta = document.querySelector('meta[name="theme-color"]');
                     if (meta) meta.content = '#60a5fa';
                 }

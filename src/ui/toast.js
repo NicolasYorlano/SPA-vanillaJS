@@ -1,10 +1,6 @@
-// Toast efímero para confirmaciones livianas (ej. "Galería actualizada").
-// Estructura de 2 capas:
-//   .toast-host → container fixed que define el anclaje en pantalla
-//                 (desktop bottom-right / mobile bottom-center vía CSS).
-//   .toast     → pill visible con su animación in/out.
-// Separar layout (host) de presentación (toast) permite que el anclaje
-// responsive viva 100% en CSS sin tocar las keyframes de animación.
+// Toast efímero. Estructura de 2 capas: .toast-host ancla en pantalla (fixed,
+// responsive via CSS), .toast es el pill con animación in/out. Separar layout
+// de presentación deja el anclaje responsive 100% en CSS sin tocar keyframes.
 export function showToast(message, duration = 1800) {
     // Dedupe: si el usuario clickea Actualizar dos veces seguidas, el nuevo
     // host reemplaza al viejo (no se apilan toasts).

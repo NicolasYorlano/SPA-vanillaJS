@@ -1,10 +1,7 @@
 import { createIcon, ICON_SIZE } from '../lib/icons.js';
 
-// Modal de detalle de imagen. Usa <dialog> nativo: focus trap, Escape para
-// cerrar, click en backdrop para cerrar. Animaciones de entrada/salida via CSS.
-// El cierre escucha el evento `routechange` del window (lo dispara el router
-// al cambiar de ruta) para auto-cerrarse si el usuario navega con el modal
-// abierto — así no queda flotando sobre una vista que no le corresponde.
+// Modal con <dialog> nativo. Escucha 'routechange' del window para auto-cerrarse
+// al cambiar de ruta — sin eso el modal queda flotando sobre la vista equivocada.
 export function openCardModal({ imgSrc, alt, name }) {
     const previousOverflow = document.body.style.overflow;
 
@@ -75,7 +72,8 @@ export function openCardModal({ imgSrc, alt, name }) {
         // animationend = camino normal. setTimeout = red de seguridad: si la
         // animación CSS .modal-closing no dispara (regla removida/renombrada),
         // el modal quedaría abierto con el scroll del body bloqueado para
-        // siempre. El fallback (animación dura 0.2s) garantiza el cleanup.
+        // siempre. 400ms = 2x la duración real (0.2s) — margen ante throttling
+        // de pestaña inactiva sin retrasar el cleanup visible.
         modal.addEventListener('animationend', cleanup, { once: true });
         setTimeout(cleanup, 400);
     };
