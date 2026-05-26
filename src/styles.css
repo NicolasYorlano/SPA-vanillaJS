@@ -379,8 +379,11 @@ header p {
     border-right: 1px solid var(--border-color);
     padding: var(--space-6) var(--space-4);
     position: sticky;
-    top: var(--header-height);
-    height: calc(100dvh - var(--header-height));
+    /* -1px de overlap con el header para tapar el gap sub-pixel que se ve
+       en devices con DPR alto (mobile real). El bg opaco del sidebar cubre
+       el último pixel del header sin afectar visualmente. */
+    top: calc(var(--header-height) - 1px);
+    height: calc(100dvh - var(--header-height) + 1px);
     align-self: start;
     overflow-y: auto;
 
@@ -1164,9 +1167,9 @@ footer p {
         border-bottom: 1px solid var(--border-color);
         padding: var(--space-3) var(--space-4);
         position: sticky;
-        /* Offset igual a la altura real del header (medida por JS).
-           Si JS no corrió todavía, --header-height tiene el valor desktop por defecto. */
-        top: var(--header-height);
+        /* Mismo -1px overlap que desktop — crítico en mobile real donde
+           el DPR alto amplifica el sub-pixel gap (ver comment en .sidebar base). */
+        top: calc(var(--header-height) - 1px);
         z-index: var(--z-sidebar-mobile);
         background-color: var(--surface);
         height: auto;
