@@ -1045,13 +1045,24 @@ dialog.modal-backdrop::backdrop {
     border-radius: var(--radius-md);
 }
 
-/* --- TOAST --- */
-.toast {
+/* --- TOAST ---
+   Estructura de 2 capas:
+   - .toast-host: anclaje en pantalla (desktop bottom-right / mobile bottom-center).
+   - .toast: el pill visible con su animación.
+   Separar layout del componente permite cambiar el anclaje responsive sin
+   tocar las keyframes (translateY puro, independiente del posicionamiento). */
+.toast-host {
     /* Vive en <body> (no en main) para sobrevivir a los replaceChildren()
        del router. Bottom-right: estándar moderno (Linear, Vercel, GitHub). */
     position: fixed;
     bottom: var(--space-5);
     right: var(--space-5);
+    z-index: var(--z-toast);
+    /* El host envuelve un pill chico, no debe interceptar clicks fuera de él. */
+    pointer-events: none;
+}
+
+.toast {
     background-color: var(--surface);
     color: var(--text-main);
     border: 1px solid var(--border-color);
@@ -1059,7 +1070,7 @@ dialog.modal-backdrop::backdrop {
     padding: var(--space-3) var(--space-4);
     border-radius: var(--radius-md);
     font-size: var(--text-sm);
-    z-index: var(--z-toast);
+    pointer-events: auto;
     /* Total 1.8s = in(0.3) + hold(1.5) + out(0.3 forwards). JS remueve a 1800ms. */
     animation: toastIn 0.3s ease-out, toastOut 0.3s ease-in 1.5s forwards;
 }
@@ -1208,6 +1219,15 @@ footer p {
 
     .btn-secondary {
         padding: var(--space-3) var(--space-4);
+    }
+
+    .toast-host {
+        /* Bottom-center: convención mobile (Material Snackbar, Twitter, Instagram).
+           En viewports estrechos, bottom-right queda visualmente sesgado y cae
+           bajo el thumb del usuario diestro. */
+        right: auto;
+        left: 50%;
+        transform: translateX(-50%);
     }
 
     main {
