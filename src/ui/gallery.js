@@ -176,6 +176,10 @@ export async function loadGallery({
 
         loadMoreBtn.addEventListener('click', async () => {
             if (totalItems >= MAX_ITEMS || exhausted) return;
+            // Guard contra re-entry: pointer-events:none del CSS solo cubre clicks
+            // del cursor. Clicks programáticos (tooling de accesibilidad, voice
+            // control, extensiones) ignoran el CSS y disparan el handler en paralelo.
+            if (loadMoreBtn.classList.contains('is-loading')) return;
 
             loadMoreError.replaceChildren();
             const originalText = loadMoreBtn.textContent;
