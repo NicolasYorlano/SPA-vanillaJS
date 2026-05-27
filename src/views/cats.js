@@ -111,7 +111,7 @@ export function fetchCats({ reload } = {}) {
     return loadGallery({
         routeName: ROUTE.CATS,
         section: {
-            titleText: 'Gatos Tiernos',
+            titleText: 'Gatos tiernos',
             refreshText: 'Ver otros gatos',
             loadMoreText: 'Cargar más gatos'
         },
