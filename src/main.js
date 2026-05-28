@@ -59,7 +59,11 @@ function init() {
     handleRouteChange(true);
 
     const yearEl = document.querySelector('[data-year]');
-    if (yearEl) yearEl.textContent = new Date().getFullYear();
+    if (yearEl) {
+        const currentYear = new Date().getFullYear();
+        yearEl.textContent = currentYear;
+        yearEl.setAttribute('datetime', currentYear);
+    }
 
     watchHeaderHeight();
 }

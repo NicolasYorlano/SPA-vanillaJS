@@ -273,7 +273,8 @@ body {
 /* --- FOCUS --- */
 button:focus-visible,
 .card:focus-visible,
-.sidebar a:focus-visible {
+.sidebar a:focus-visible,
+.footer-link:focus-visible {
     outline: var(--border-width-strong) solid var(--primary-color);
     outline-offset: 2px;
 }
@@ -1105,20 +1106,76 @@ dialog.modal-backdrop::backdrop {
     .modal-close:hover {
         background-color: var(--modal-close-hover-bg);
     }
+
+    .footer-link:hover {
+        color: var(--text-main);
+        background-color: var(--surface-muted);
+    }
 }
 
 /* --- FOOTER --- */
+/* Banda full-width (background + border-top corren de borde a borde del
+   viewport) con contenido confinado a una sub-grid que espeja el layout
+   del body. Así .footer-inner queda en la misma columna que main y respeta
+   el mismo max-width — el texto y el link se alinean visualmente con el
+   contenido principal en vez de pegar a los extremos del viewport. */
 footer {
     grid-area: footer;
+
     background-color: var(--surface);
     border-top: 1px solid var(--border-color);
-    padding: var(--space-5);
-    text-align: center;
+
+    display: grid;
+    grid-template-columns: var(--sidebar-width) 1fr;
+}
+
+.footer-inner {
+    grid-column: 2;
+    justify-self: center;
+    width: 100%;
+    max-width: var(--container-max-width);
+    padding: var(--space-5) var(--space-6);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-4);
 }
 
 footer p {
+    margin: 0;
+}
+
+.footer-copyright {
     font-size: var(--text-sm);
     color: var(--text-muted);
+}
+
+.footer-copyright::after {
+    content: '';
+    display: inline-block;
+    width: 1px;
+    height: 1em;
+    margin-left: var(--space-4);
+    vertical-align: middle;
+    background-color: var(--border-color);
+}
+
+.footer-link {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-md);
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+    text-decoration: none;
+    transition: color var(--transition-base), background-color var(--transition-base);
+}
+
+.footer-icon {
+    width: var(--icon-md);
+    height: var(--icon-md);
 }
 
 /* --- RESPONSIVE --- */
@@ -1237,6 +1294,31 @@ footer p {
 
     .data-grid {
         grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    }
+
+    /* Mobile: el body colapsa a 1 columna → la sub-grid del footer también.
+       .footer-inner pasa a ocupar el track único y stackea vertical. */
+    footer {
+        grid-template-columns: 1fr;
+    }
+
+    .footer-inner {
+        grid-column: 1;
+        flex-direction: column;
+        text-align: center;
+        padding: var(--space-4);
+        gap: var(--space-2);
+    }
+
+    /* Divider sólo tiene sentido cuando los ítems están inline. En stack
+       vertical quedaría como una hairline flotando bajo el copyright. */
+    .footer-copyright::after {
+        display: none;
+    }
+
+    .footer-link {
+        /* Padding extendido → ~44px alto, target táctil WCAG 2.5.5 AAA. */
+        padding: var(--space-3) var(--space-4);
     }
 }
 
