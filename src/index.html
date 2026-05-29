@@ -43,7 +43,7 @@
          (deferred) → corre tarde. Este inline corre sincrónicamente antes del CSS. -->
     <script>
         (function () {
-            // localStorage puede tirar (Firefox con cookies bloqueadas / iframes sandbox).
+            // localStorage puede tirar error (Firefox con cookies bloqueadas / iframes sandbox).
             // Si falla, caemos al default light sin romper la app.
             try {
                 const stored = localStorage.getItem('theme');
