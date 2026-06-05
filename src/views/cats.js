@@ -140,6 +140,6 @@ export function fetchCats({ reload } = {}) {
             catsCache = { items: [...items], names };
             saveCatsCache();
         },
-        loadMoreErrorPrefix: 'Al cargar más michis: '
+        loadMoreErrorPrefix: 'Al cargar más gatos: '
     });
 }

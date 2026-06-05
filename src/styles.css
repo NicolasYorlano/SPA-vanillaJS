@@ -17,7 +17,9 @@
 
     /* === TEXT === */
     --text-main: #1e293b;
-    --text-muted: #64748b;
+    /* Pasa WCAG AA sobre --surface-muted, donde #64748b caía a ~4.3:1.
+       Valor "raro" a propósito — no redondear a un slate más lindo. */
+    --text-muted: #586676;
 
     /* === BORDERS === */
     --border-color: #e2e8f0;
@@ -59,6 +61,8 @@
     --transition: background-color 0.3s ease, color 0.3s ease, transform 0.1s ease, box-shadow 0.3s ease, border-color 0.2s ease;
     --transition-base: 0.2s ease;
     --transition-slow: 0.3s ease;
+    /* Único source de la duración del cross-fade de tema; lib/theme.js la lee. */
+    --theme-transition-duration: 0.3s;
 
     /* === SKELETON === */
     --skeleton-bg: linear-gradient(90deg, var(--surface-muted) 0%, var(--border-color) 50%, var(--surface-muted) 100%);
@@ -103,6 +107,7 @@
     --radius-lg: 12px;    /* cards, contenedores grandes */
 
     /* === BORDERS === */
+    --border-width: 1px;          /* hairline default — header, sidebar, cards, surfaces */
     --border-width-strong: 2px;   /* underline title, focus outlines */
 
     /* === ICONS === */
@@ -274,7 +279,11 @@ body {
 button:focus-visible,
 .card:focus-visible,
 .sidebar a:focus-visible,
-.footer-link:focus-visible {
+.footer-link:focus-visible,
+/* .btn-* como <a> y .home-cta: sin esto caen al focus ring default del browser. */
+.btn-primary:focus-visible,
+.btn-secondary:focus-visible,
+.home-cta:focus-visible {
     outline: var(--border-width-strong) solid var(--primary-color);
     outline-offset: 2px;
 }
@@ -291,7 +300,7 @@ header {
     grid-area: header;
 
     background-color: var(--surface);
-    border-bottom: 1px solid var(--border-color);
+    border-bottom: var(--border-width) solid var(--border-color);
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -339,7 +348,7 @@ header p {
 /* --- THEME TOGGLE --- */
 .theme-toggle {
     background-color: transparent;
-    border: 1px solid var(--border-color);
+    border: var(--border-width) solid var(--border-color);
     border-radius: var(--radius-md);
     width: var(--space-7);
     height: var(--space-7);
@@ -377,7 +386,7 @@ header p {
     grid-area: sidebar;
 
     background-color: var(--surface);
-    border-right: 1px solid var(--border-color);
+    border-right: var(--border-width) solid var(--border-color);
     padding: var(--space-6) var(--space-4);
     position: sticky;
     /* -1px de overlap con el header para tapar el gap sub-pixel que se ve
@@ -393,15 +402,6 @@ header p {
     gap: var(--space-2);
 }
 
-.sidebar-heading {
-    font-size: var(--text-xs);
-    text-transform: uppercase;
-    font-weight: var(--weight-bold);
-    color: var(--text-muted);
-    margin-bottom: var(--space-4);
-    letter-spacing: var(--tracking-wide);
-}
-
 .sidebar-section-label {
     font-size: var(--text-xs);
     font-weight: var(--weight-semibold);
@@ -414,7 +414,7 @@ header p {
 .sidebar a {
     display: block;
     background-color: transparent;
-    border: 1px solid transparent;
+    border: var(--border-width) solid transparent;
     padding: var(--space-3) var(--space-4);
     text-align: left;
     border-radius: var(--radius-md);
@@ -446,7 +446,7 @@ main > div {
     background-color: var(--surface);
     border-radius: var(--radius-lg);
     min-height: var(--main-min-height);
-    border: 1px solid var(--border-color);
+    border: var(--border-width) solid var(--border-color);
     box-shadow: var(--shadow-sm);
     padding: var(--space-6);
     display: flex;
@@ -496,7 +496,7 @@ main > div {
 }
 
 .card {
-    border: 1px solid var(--border-color);
+    border: var(--border-width) solid var(--border-color);
     border-radius: var(--radius-lg);
     padding: var(--space-4);
     background-color: var(--surface-elevated);
@@ -575,7 +575,7 @@ main > div {
 
 /* --- SKELETON --- */
 .skeleton-card {
-    border: 1px solid var(--border-color);
+    border: var(--border-width) solid var(--border-color);
     border-radius: var(--radius-lg);
     /* Mismo padding que .card → reemplazo sin layout shift (CLS = 0). */
     padding: var(--space-4);
@@ -677,7 +677,7 @@ main > div {
     color: var(--text-main);
     margin: 0;
     padding-right: var(--space-6);
-    border-right: 1px solid var(--border-color);
+    border-right: var(--border-width) solid var(--border-color);
     font-variant-numeric: tabular-nums;
 }
 
@@ -721,7 +721,7 @@ main > div {
         padding-right: 0;
         padding-bottom: var(--space-4);
         border-right: none;
-        border-bottom: 1px solid var(--border-color);
+        border-bottom: var(--border-width) solid var(--border-color);
         align-self: stretch;
     }
 }
@@ -844,7 +844,7 @@ main > div {
     display: block;
     padding: var(--space-5);
     background-color: var(--surface-elevated);
-    border: 1px solid var(--border-color);
+    border: var(--border-width) solid var(--border-color);
     border-radius: var(--radius-lg);
     text-decoration: none;
     color: inherit;
@@ -1008,13 +1008,55 @@ dialog.modal-backdrop::backdrop {
     z-index: 1;
 }
 
+/* Flechas de navegación entre imágenes. Mismo lenguaje visual que .modal-close. */
+.modal-nav {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    background-color: var(--modal-close-bg);
+    color: #fff;
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    border: none;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color var(--transition-base);
+    z-index: 1;
+}
+
+.modal-nav-prev { left: var(--space-3); }
+.modal-nav-next { right: var(--space-3); }
+/* Oculta en primera/última. [hidden] (0,2,0) le gana a .modal-nav (0,1,0). */
+.modal-nav[hidden] { display: none; }
+
+.modal-media {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 0;
+}
+
 .modal-img {
     max-width: 100%;
-    max-height: calc(90vh - 100px);
+    /* Resta close/título/contador/padding del alto disponible del dialog. */
+    max-height: calc(90vh - 140px);
     object-fit: contain;
     border-radius: var(--radius-md);
     display: block;
     margin: 0 auto;
+}
+
+.modal-counter {
+    text-align: center;
+    font-size: var(--text-sm);
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+    margin: 0;
 }
 
 .modal-img-error {
@@ -1062,7 +1104,7 @@ dialog.modal-backdrop::backdrop {
 .toast {
     background-color: var(--surface);
     color: var(--text-main);
-    border: 1px solid var(--border-color);
+    border: var(--border-width) solid var(--border-color);
     box-shadow: var(--shadow-sm);
     padding: var(--space-3) var(--space-4);
     border-radius: var(--radius-md);
@@ -1103,7 +1145,8 @@ dialog.modal-backdrop::backdrop {
         transform: scale(1.05);
     }
 
-    .modal-close:hover {
+    .modal-close:hover,
+    .modal-nav:hover {
         background-color: var(--modal-close-hover-bg);
     }
 
@@ -1123,7 +1166,7 @@ footer {
     grid-area: footer;
 
     background-color: var(--surface);
-    border-top: 1px solid var(--border-color);
+    border-top: var(--border-width) solid var(--border-color);
 
     display: grid;
     grid-template-columns: var(--sidebar-width) 1fr;
@@ -1235,7 +1278,7 @@ footer p {
 
     .sidebar {
         border-right: none;
-        border-bottom: 1px solid var(--border-color);
+        border-bottom: var(--border-width) solid var(--border-color);
         padding: var(--space-3) var(--space-4);
         position: sticky;
         /* Mismo -1px overlap que desktop — crítico en mobile real donde
@@ -1250,15 +1293,16 @@ footer p {
         overflow-x: auto;
         gap: var(--space-2);
         scrollbar-width: none;
-        mask-image: linear-gradient(to right, black 88%, transparent 100%);
-        -webkit-mask-image: linear-gradient(to right, black 88%, transparent 100%);
+        /* Fade solo en los últimos 24px: insinúa scroll sin recortar el texto
+           del último ítem al llegar al final. */
+        mask-image: linear-gradient(to right, black calc(100% - 24px), transparent);
+        -webkit-mask-image: linear-gradient(to right, black calc(100% - 24px), transparent);
     }
 
     .sidebar::-webkit-scrollbar {
         display: none;
     }
 
-    .sidebar-heading,
     .sidebar-section-label {
         display: none;
     }
@@ -1275,6 +1319,12 @@ footer p {
     .theme-toggle {
         width: 44px;
         height: 44px;
+    }
+
+    /* Target táctil 44px (WCAG 2.5.5 AAA): el secundario quedaba ~40px acá. */
+    .btn-primary,
+    .btn-secondary {
+        min-height: 44px;
     }
 
     .btn-secondary {
@@ -1381,6 +1431,11 @@ footer p {
         top: var(--space-2);
         right: var(--space-2);
     }
+
+    .modal-nav {
+        width: 44px;
+        height: 44px;
+    }
 }
 
 /* --- REDUCED MOTION --- */
@@ -1391,4 +1446,29 @@ footer p {
         transition-duration: 0.01ms !important;
         scroll-behavior: auto !important;
     }
+}
+
+/* --- THEME SWITCH ---
+   Reveal del toggle (ver lib/theme.js): apagamos el cross-fade default de la API
+   para que el clip circular sea el único movimiento. El snapshot nuevo va encima
+   (z-index) y el clip lo revela sobre el viejo. */
+::view-transition-old(root),
+::view-transition-new(root) {
+    animation: none;
+    mix-blend-mode: normal;
+}
+::view-transition-new(root) { z-index: 1; }
+::view-transition-old(root) { z-index: 0; }
+
+/* Fallback sin View Transitions (Firefox, Safari < 18). El !important + el selector
+   amplio le ganan a los transitions por-componente para que todo anime con un
+   timing único (sin el lag de "catch-up"). La clase la maneja lib/theme.js. */
+html.theme-transition,
+html.theme-transition *,
+html.theme-transition *::before,
+html.theme-transition *::after {
+    transition: background-color var(--theme-transition-duration) ease,
+                color var(--theme-transition-duration) ease,
+                border-color var(--theme-transition-duration) ease,
+                fill var(--theme-transition-duration) ease !important;
 }

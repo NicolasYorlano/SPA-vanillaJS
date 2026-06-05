@@ -1,4 +1,5 @@
 import { safeStorageGet, safeStorageSet } from './storage.js';
+import { announce, prefersReducedMotion } from './a11y.js';
 
 // El tema ya fue aplicado por el inline script del <head> (anti-FOUC); este
 // módulo se encarga del toggle, el listener del sistema y la sincronización
@@ -25,6 +26,66 @@ export function applyTheme(theme) {
     if (meta && primary) meta.content = primary;
 }
 
+const THEME_REVEAL_MS = 420;   // reveal circular (View Transitions)
+let themeFadeTimer = null;
+
+// Decide CÓMO se anima el cambio (applyTheme hace el cambio en sí).
+// origin = centro del botón en viewport, para anclar el reveal.
+function switchTheme(next, origin) {
+    if (prefersReducedMotion()) {
+        applyTheme(next);
+        return;
+    }
+
+    if (typeof document.startViewTransition !== 'function') {
+        fallbackCrossfade(next);
+        return;
+    }
+
+    const transition = document.startViewTransition(() => applyTheme(next));
+    transition.ready.then(() => {
+        // Radio hasta la esquina más lejana → el círculo cubre todo el viewport.
+        const endRadius = Math.hypot(
+            Math.max(origin.x, window.innerWidth - origin.x),
+            Math.max(origin.y, window.innerHeight - origin.y)
+        );
+        document.documentElement.animate(
+            {
+                clipPath: [
+                    `circle(0px at ${origin.x}px ${origin.y}px)`,
+                    `circle(${endRadius}px at ${origin.x}px ${origin.y}px)`
+                ]
+            },
+            {
+                duration: THEME_REVEAL_MS,
+                easing: 'cubic-bezier(0.4, 0, 0.2, 1)',
+                pseudoElement: '::view-transition-new(root)'
+            }
+        );
+    }).catch(() => {
+        // VT abortada (toggle rápido): el tema ya se aplicó igual.
+    });
+}
+
+// La duración del cross-fade vive solo en CSS (--theme-transition-duration); la
+// leemos para no duplicar el número en JS. Acepta valores en s o ms.
+function themeFadeMs() {
+    const v = getComputedStyle(document.documentElement)
+        .getPropertyValue('--theme-transition-duration').trim();
+    return v.endsWith('ms') ? parseFloat(v) : parseFloat(v) * 1000;
+}
+
+// Cross-fade para navegadores sin View Transitions. La clase activa el transition
+// global solo durante el cambio; se saca al terminar para no afectar los hovers.
+function fallbackCrossfade(next) {
+    const root = document.documentElement;
+    root.classList.add('theme-transition');
+    applyTheme(next);
+    clearTimeout(themeFadeTimer);
+    // +60ms de margen para no cortar el final de la transición.
+    themeFadeTimer = setTimeout(() => root.classList.remove('theme-transition'), themeFadeMs() + 60);
+}
+
 export function initTheme() {
     applyTheme(getCurrentTheme());
 
@@ -33,7 +94,9 @@ export function initTheme() {
         toggle.addEventListener('click', () => {
             const next = getCurrentTheme() === 'dark' ? 'light' : 'dark';
             safeStorageSet('theme', next);
-            applyTheme(next);
+            // Centro del botón: ancla el reveal igual con mouse o teclado.
+            const rect = toggle.getBoundingClientRect();
+            switchTheme(next, { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
             // Anunciar SOLO en toggle del usuario (no en init ni en cambio del sistema)
             // para que NVDA/VoiceOver confirmen la acción sin ruido al cargar la app.
             announce(next === 'dark' ? 'Tema oscuro activado' : 'Tema claro activado');
@@ -41,18 +104,9 @@ export function initTheme() {
     }
 
     // Reaccionar a cambios del sistema SOLO SI el usuario NO eligió manualmente.
+    // Instantáneo: cambio pasivo del SO, sin click que ancle el reveal.
     window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
         if (safeStorageGet('theme')) return;
         applyTheme(e.matches ? 'dark' : 'light');
     });
-}
-
-// Update el live region #sr-announce para que screen readers lean el cambio.
-// Limpia después de 3s para que un siguiente announce del MISMO texto vuelva
-// a dispararse (live regions no re-anuncian si el textContent no cambia).
-function announce(msg) {
-    const live = document.querySelector('#sr-announce');
-    if (!live) return;
-    live.textContent = msg;
-    setTimeout(() => { if (live.textContent === msg) live.textContent = ''; }, 3000);
 }

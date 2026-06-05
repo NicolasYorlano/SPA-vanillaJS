@@ -95,6 +95,7 @@ export async function loadGallery({
 
         const seenIds = new Set();
         const renderedItems = []; // set canónico (deduplicado + capeado) que se persiste
+        const cardItems = [];     // data mapeada en orden de render — colección que navega el modal
         let totalItems = 0;
         let exhausted = false;
 
@@ -138,7 +139,9 @@ export async function loadGallery({
                     seenIds.add(id);
                 }
                 renderedItems.push(item);
-                fragment.appendChild(createCard(mapItem(item)));
+                const mapped = mapItem(item);
+                const cardIndex = cardItems.push(mapped) - 1;
+                fragment.appendChild(createCard(mapped, cardItems, cardIndex));
                 added++;
             }
 

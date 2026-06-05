@@ -34,8 +34,8 @@ export function renderHome() {
     const ctaGrid = document.createElement('div');
     ctaGrid.className = 'home-cta-grid';
     ctaGrid.append(
-        createHomeCta(ROUTE.CATS, 'Galería de gatos', 'Imágenes aleatorias de gatos desde The Cat API con nombres asignados.'),
-        createHomeCta(ROUTE.CARS, 'Galería de autos', 'Fotos de autos de lujo desde Pixabay — Ferraris, Lamborghinis y otros supercars.')
+        createHomeCta(ROUTE.CATS, 'Gatos tiernos', 'Imágenes aleatorias de gatos desde The Cat API con nombres asignados.'),
+        createHomeCta(ROUTE.CARS, 'Autos que queremos tener', 'Fotos de autos de lujo desde Pixabay — Ferraris, Lamborghinis y otros supercars.')
     );
     ctas.append(ctaGrid);
 

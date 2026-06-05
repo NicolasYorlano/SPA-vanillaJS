@@ -51,6 +51,7 @@ main.js (entry: ensambla todo y arranca init)
        │                      via initRouter — no conoce a las views)
        ├── fetch.js          (fetchWithTimeout con signal externo por DI)
        ├── storage.js        (safe* wrappers defensivos)
+       ├── a11y.js           (announce a screen readers + prefersReducedMotion, compartido)
        ├── theme.js
        ├── icons.js
        ├── dom.js            (refs DOM compartidas)
@@ -118,6 +119,7 @@ appJS/
 │   ├── styles.css
 │   ├── main.js                # Entry point: ensambla routes y arranca init
 │   ├── lib/
+│   │   ├── a11y.js
 │   │   ├── config.js
 │   │   ├── dom.js
 │   │   ├── fetch.js

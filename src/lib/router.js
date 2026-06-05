@@ -1,4 +1,5 @@
 import { mainContainer, navLinks } from './dom.js';
+import { prefersReducedMotion } from './a11y.js';
 import { showToast } from '../ui/toast.js';
 
 // Router con History API. State interno + getters exportados; main.js inyecta
@@ -124,11 +125,10 @@ function updateActiveNavLink(activeLink) {
     activeLink.classList.add('active');
     activeLink.setAttribute('aria-current', 'page');
 
-    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     // inline:center + block:nearest — en mobile el sidebar es scroll horizontal:
     // centra el link activo sin disparar scroll vertical de la página.
     activeLink.scrollIntoView({
-        behavior: prefersReduced ? 'auto' : 'smooth',
+        behavior: prefersReducedMotion() ? 'auto' : 'smooth',
         inline: 'center',
         block: 'nearest'
     });

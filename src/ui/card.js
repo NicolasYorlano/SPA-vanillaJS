@@ -1,7 +1,9 @@
 import { createIcon, ICON_SIZE } from '../lib/icons.js';
 import { openCardModal } from './modal.js';
 
-export function createCard({ imgSrc, alt, name }) {
+// collection + index habilitan navegar prev/next dentro del modal sin cerrar.
+export function createCard(item, collection = null, index = 0) {
+    const { imgSrc, alt, name } = item;
     const card = document.createElement('button');
     card.type = 'button';
     card.className = 'card';
@@ -39,7 +41,10 @@ export function createCard({ imgSrc, alt, name }) {
     card.appendChild(imgContainer);
     card.appendChild(nameEl);
 
-    card.addEventListener('click', () => openCardModal({ imgSrc, alt, name }));
+    card.addEventListener('click', () => {
+        if (collection) openCardModal(collection, index);
+        else openCardModal([item], 0);
+    });
 
     return card;
 }
