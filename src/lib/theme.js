@@ -26,7 +26,7 @@ export function applyTheme(theme) {
     if (meta && primary) meta.content = primary;
 }
 
-const THEME_REVEAL_MS = 420;   // reveal circular (View Transitions)
+const THEME_REVEAL_MS = 500;   // reveal circular (View Transitions)
 let themeFadeTimer = null;
 
 // Decide CÓMO se anima el cambio (applyTheme hace el cambio en sí).
