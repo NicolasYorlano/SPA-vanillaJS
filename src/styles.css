@@ -5,7 +5,6 @@
     /* === BRAND === */
     --primary-color: #2563eb;
     --primary-hover: #1d4ed8;
-    --primary-accent: #3b82f6;   /* shade alterno para tercera quote del home */
 
     /* === SURFACES === */
     --bg-color: #f8fafc;
@@ -28,11 +27,6 @@
     --error-color: #dc2626;
     --error-bg: #fee2e2;
     --error-hover: #b91c1c;
-
-    /* === QUOTE GLOWS (home highlights) === */
-    --quote-glow-1: rgba(29, 78, 216, 0.3);
-    --quote-glow-2: rgba(37, 99, 235, 0.3);
-    --quote-glow-3: rgba(59, 130, 246, 0.3);
 
     /* === MODAL OVERLAYS === */
     --modal-backdrop: rgba(15, 23, 42, 0.7);
@@ -75,8 +69,8 @@
     --text-base: 1rem;       /* 16px - body */
     --text-md:   1.125rem;   /* 18px - h3, titles secundarios */
     --text-lg:   1.25rem;    /* 20px - error-title, brand */
-    --text-xl:   1.5rem;     /* 24px - h1, content-title (cap), highlighted-quote (cap) */
-    --text-2xl:  2rem;       /* 32px - hero reserva */
+    --text-xl:   1.5rem;     /* 24px - h1, content-title (cap) */
+    --text-2xl:  2rem;       /* 32px - highlighted-quote (cap) */
 
     --leading-none:  1;      /* acentos numéricos sin descender (ej. 404 code) */
     --leading-tight: 1.2;
@@ -138,7 +132,6 @@
        (sync de meta theme-color). Si cambia acá, actualizar ahí también. */
     --primary-color: #60a5fa;
     --primary-hover: #93c5fd;
-    --primary-accent: #3b82f6;
 
     /* === SURFACES === */
     --bg-color: #0a0a0a;
@@ -159,11 +152,6 @@
     --error-color: #f87171;
     --error-bg: rgba(248, 113, 113, 0.15);
     --error-hover: #ef4444;
-
-    /* === QUOTE GLOWS === */
-    --quote-glow-1: rgba(147, 197, 253, 0.4);
-    --quote-glow-2: rgba(96, 165, 250, 0.4);
-    --quote-glow-3: rgba(59, 130, 246, 0.4);
 
     /* === MODAL OVERLAYS ===
         close-bg queda OSCURO en ambos themes (no se invierte): flota sobre
@@ -792,24 +780,16 @@ main > div {
 }
 
 /* --- HOME --- */
+/* Cita destacada del home: tinte de marca + tipografía display sobria.
+   El color y la escala cargan el énfasis — sin text-shadow. */
 .highlighted-quote {
-    font-size: clamp(1.15rem, 0.8vw + 0.95rem, 1.5rem);
     margin: var(--space-5) 0;
-}
-
-.shadow-1 {
-    color: var(--primary-hover);
-    text-shadow: 2px 2px 8px var(--quote-glow-1);
-}
-
-.shadow-2 {
+    max-width: var(--prose-max-width);
+    font-size: clamp(1.25rem, 1.2vw + 1rem, var(--text-2xl));
+    font-weight: var(--weight-medium);
+    line-height: var(--leading-tight);
+    letter-spacing: var(--tracking-tight);
     color: var(--primary-color);
-    text-shadow: 2px 2px 8px var(--quote-glow-2);
-}
-
-.shadow-3 {
-    color: var(--primary-accent);
-    text-shadow: 2px 2px 8px var(--quote-glow-3);
 }
 
 .expectations-paragraph {

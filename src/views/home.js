@@ -3,13 +3,13 @@ import { ROUTE, pathFor, navigate } from '../lib/router.js';
 import { createIcon, ICON_SIZE } from '../lib/icons.js';
 
 const HOME_PHRASES = [
-    { text: "La tecnología es mejor cuando une a las personas.", className: "shadow-1" },
-    { text: "El software es una combinación de arte e ingeniería.", className: "shadow-2" },
-    { text: "La innovación distingue a los líderes de los seguidores.", className: "shadow-3" }
+    "La tecnología es mejor cuando une a las personas.",
+    "El software es una combinación de arte e ingeniería.",
+    "La innovación distingue a los líderes de los seguidores."
 ];
 
 export function renderHome() {
-    const selected = HOME_PHRASES[Math.floor(Math.random() * HOME_PHRASES.length)];
+    const phrase = HOME_PHRASES[Math.floor(Math.random() * HOME_PHRASES.length)];
 
     mainContainer.replaceChildren();
 
@@ -18,8 +18,8 @@ export function renderHome() {
     title.textContent = 'Cats & Cars';
 
     const quote = document.createElement('h2');
-    quote.className = `${selected.className} highlighted-quote`;
-    quote.textContent = `"${selected.text}"`;
+    quote.className = 'highlighted-quote';
+    quote.textContent = `"${phrase}"`;
 
     const expectations = document.createElement('section');
     expectations.className = 'expectations-paragraph';
